@@ -7,7 +7,7 @@ export default function Footer() {
           <div className="text-sm text-gray-500">The anonymous NFT marketplace</div>
           <div className="flex flex-col items-center mt-6">
             {[
-              { link: "#", text: "How does Duin work? (in 3 minutes)" },
+              { link: "#", text: "Learn how Duin works (in 3 minutes)" },
               { link: "#", text: "Terms and Conditions" },
             ].map((item) => (
               <a href={item.link} key={item.text} className="text-sm text-gray-900 hover:text-gray-500 transition-colors">
