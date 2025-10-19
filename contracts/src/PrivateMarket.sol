@@ -12,6 +12,9 @@ contract PrivateMarket is ReentrancyGuard, Ownable {
     mapping(address => Bid) public bids;
     mapping(bytes32 => address) public bidNullifiers;
 
+    // Array of commitments (leafs of merkle tree)
+    bytes32[] public commitments;
+
     // Constructor to set the admin address
     // The TEE attestation of the admin also needs to be verified.
     constructor() Ownable(msg.sender) {}
