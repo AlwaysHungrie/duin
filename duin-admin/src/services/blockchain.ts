@@ -1,7 +1,12 @@
 // Blockchain service for interacting with Anvil
 
 import { ethers } from "ethers";
-import type { WalletInfo, NftMintedEvent } from "../types/index.js";
+import type {
+  WalletInfo,
+  NftMintedEvent,
+  Config,
+  Commitment,
+} from "../types/index.js";
 import type { ContractConfig } from "../config/contract.js";
 import type { PrivateMarket } from "../contractTypes/index.js";
 
@@ -9,16 +14,19 @@ export class BlockchainService {
   private provider: ethers.JsonRpcProvider;
   private wallet: ethers.Wallet;
   private rpcUrl: string;
+  private config: Config;
   private contractConfig: ContractConfig;
 
   constructor(
     rpcUrl: string,
     privateKey: string,
+    config: Config,
     contractConfig: ContractConfig
   ) {
     this.rpcUrl = rpcUrl;
     this.provider = new ethers.JsonRpcProvider(rpcUrl);
     this.wallet = new ethers.Wallet(privateKey, this.provider);
+    this.config = config;
     this.contractConfig = contractConfig;
   }
 
@@ -184,6 +192,82 @@ export class BlockchainService {
     } catch (error) {
       console.error("Error minting nft:", error);
       throw new Error("Failed to mint nft");
+    }
+  }
+
+  // read all events NftMinted till the tillTimestamp
+  async updateCommitments() {
+    let lastTimestamp = this.config.publishTimestamp;
+    const commitments = this.contractConfig.getCommitments();
+    if (
+      commitments?.length &&
+      commitments[commitments.length - 1]?.timestamp !== undefined
+    ) {
+      lastTimestamp = commitments[commitments.length - 1]!.timestamp;
+    }
+    try {
+      const contractAddress = this.contractConfig.getContractAddress();
+      if (!contractAddress) {
+        throw new Error(
+          "Contract not deployed. Please deploy the contract first."
+        );
+      }
+
+      const factory = this.contractConfig.getContractFactory(this.wallet);
+      const contract = factory.attach(contractAddress) as PrivateMarket;
+
+      const currentBlock = await this.provider.getBlockNumber();
+      const batchSize = 2000;
+      const commitments: Commitment[] = [];
+      const blockTimestampCache = new Map<number, number>();
+
+      let toBlock = currentBlock;
+      while (toBlock >= 0) {
+        const fromBlock = Math.max(0, toBlock - batchSize + 1);
+
+        // Query NftMinted events in this block range
+        const events = await contract.queryFilter(
+          contract.filters.NftMinted(),
+          fromBlock,
+          toBlock
+        );
+
+        for (const ev of events) {
+          const blockNumber = ev.blockNumber;
+          let ts = blockTimestampCache.get(blockNumber);
+          if (ts === undefined) {
+            const block = await this.provider.getBlock(blockNumber);
+            ts = block?.timestamp ?? 0;
+            blockTimestampCache.set(blockNumber, ts);
+          }
+          if (lastTimestamp <= 0 || ts > lastTimestamp) {
+            const commitment = (ev.args?.[1] as string) ?? ""; // bytes32
+            const tokenId = (ev.args?.[0].toString() ?? "") as string;
+            if (commitment) {
+              commitments.push({ tokenId, commitmentHash: commitment, timestamp: ts });
+            }
+          }
+        }
+
+        // If the oldest block in this batch is at or before the cutoff, we can stop.
+        if (lastTimestamp > 0) {
+          const oldestBlock = await this.provider.getBlock(fromBlock);
+          if (oldestBlock && oldestBlock.timestamp <= lastTimestamp) {
+            break;
+          }
+        }
+
+        if (fromBlock === 0) break;
+        toBlock = fromBlock - 1;
+      }
+
+      // Return commitments in chronological order
+      this.contractConfig.addCommitments(
+        commitments.sort((a, b) => a.timestamp - b.timestamp)
+      );
+    } catch (error) {
+      console.error("Error fetching commitments:", error);
+      throw new Error("Failed to fetch commitments");
     }
   }
 

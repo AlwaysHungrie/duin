@@ -39,10 +39,17 @@ export interface Config {
   publishTimestamp: number;
   contractAddress?: string;
   ownerSecret: string;
+  corsOrigin: string;
 }
 
 export interface NftMintedEvent {
   tokenId: string;
   commitment: string;
   transactionHash: string;
+}
+
+export interface Commitment {
+  tokenId: string;
+  commitmentHash: string;
+  timestamp: number;
 }

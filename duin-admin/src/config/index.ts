@@ -13,6 +13,7 @@ export function loadConfig(): Config {
   const anvilChainId = parseInt(process.env.ANVIL_CHAIN_ID || '31337', 10);
   const publishTimestamp = parseInt(process.env.PUBLISH_TIMESTAMP || '0', 10);
   const ownerSecret = process.env.OWNER_SECRET || '';
+  const corsOrigin = process.env.CORS_ORIGIN || '*';
 
   if (!privateKey) {
     throw new Error('PRIVATE_KEY is required in environment variables');
@@ -24,7 +25,8 @@ export function loadConfig(): Config {
     privateKey,
     anvilChainId,
     publishTimestamp,
-    ownerSecret
+    ownerSecret,
+    corsOrigin
   };
 }
 

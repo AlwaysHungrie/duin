@@ -21,12 +21,14 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "ethers": "^6.13.2",
     "express": "^5.1.0"
   },
   "devDependencies": {
     "@typechain/ethers-v6": "^0.5.1",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/node": "^24.8.1",
     "nodemon": "^3.1.10",

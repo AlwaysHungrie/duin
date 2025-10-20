@@ -13,16 +13,11 @@ import { truncateText } from "@/lib/format";
 import NFTDetails from "./nftDetails";
 import ViewBids from "./viewBids";
 import PlaceBid from "./placeBid";
+import { Copy } from "lucide-react";
 
 export interface NFTMetadata {
-  name: string;
-  description: string;
-  image: string;
-  attributes: Array<{
-    trait_type: string;
-    value: string | number;
-  }>;
-  contractAddress: string;
+  tokenId: string;
+  commitmentHash: string;
   chain: string;
 }
 
@@ -34,27 +29,28 @@ export default function NFTCard({ metadata }: { metadata: NFTMetadata }) {
   return (
     <Card className="w-80 overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 p-0">
       <CardHeader className="p-0">
-        <div className="relative w-full h-64">
-          <Image
-            src={metadata.image}
-            alt={metadata.name}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          />
-        </div>
+        <div className="relative w-full h-64 bg-gray-100 flex items-center justify-center">NFT #{metadata.tokenId}</div>
       </CardHeader>
 
       <CardContent className="p-4 pt-0">
         <CardTitle className="text-lg font-bold mb-2 line-clamp-1">
-          {metadata.name}
+          #{metadata.tokenId}
         </CardTitle>
 
-        <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-          {truncateText(metadata.description, 80)}
-        </p>
-
         <div className="flex flex-col gap-y-2 mt-4">
+          <div className="flex text-xs">
+            <span className="text-gray-500">Commitment Hash:</span>
+            <span className="ml-auto font-medium">{truncateText(metadata.commitmentHash, 10)}</span>
+            <button
+              type="button"
+              className="ml-2 text-gray-400 hover:text-gray-600 focus:outline-none"
+              onClick={() => navigator.clipboard.writeText(metadata.commitmentHash)}
+              title="Copy Commitment Hash"
+            >
+              <Copy size={16} />
+            </button>
+          </div>
+
           <div className="flex justify-between text-xs">
             <span className="text-gray-500">Owner:</span>
             <span className="font-medium">Hidden</span>
@@ -78,11 +74,11 @@ export default function NFTCard({ metadata }: { metadata: NFTMetadata }) {
           isDialogOpen={isPlaceBidDialogOpen}
           setIsDialogOpen={setIsPlaceBidDialogOpen}
         />
-        <ViewBids
+        {/* <ViewBids
           metadata={metadata}
           isDialogOpen={isViewBidsDialogOpen}
           setIsDialogOpen={setIsViewBidsDialogOpen}
-        />
+        /> */}
         <NFTDetails
           metadata={metadata}
           isDialogOpen={isNFTDialogOpen}

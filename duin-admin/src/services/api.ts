@@ -110,4 +110,25 @@ export class ApiService {
       });
     }
   }
+
+  async handleGetCommitments(req: Request, res: Response): Promise<void> {
+    try {
+      await this.blockchainService.updateCommitments();
+      const response: ApiResponse = {
+        success: true,
+        data: {
+          message: "Duin Admin API is running",
+          commitments: this.contractConfig.getCommitments(),
+        },
+      };
+
+      res.json(response);
+    } catch (error) {
+      const response: ApiResponse = {
+        success: false,
+        error: "Fetching commitments failed",
+      };
+      res.status(500).json(response);
+    }
+  }
 }

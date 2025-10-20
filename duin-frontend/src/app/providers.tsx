@@ -1,5 +1,6 @@
 "use client";
 
+import { CommitmentsProvider } from "@/context/commitmentsContext";
 import { PrivyProvider } from "@privy-io/react-auth";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
@@ -58,7 +59,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         ],
       }}
     >
-      {children}
+      <CommitmentsProvider>
+        {children}
+      </CommitmentsProvider>
     </PrivyProvider>
   );
 }

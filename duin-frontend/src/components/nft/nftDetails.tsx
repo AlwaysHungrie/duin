@@ -27,37 +27,24 @@ export default function NFTDetails({
       </DialogTrigger>
       <DialogContent className="max-w-xl max-h-[50vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold"></DialogTitle>
-          <DialogDescription></DialogDescription>
+          <DialogTitle className="text-xl font-bold">NFT #{metadata.tokenId}</DialogTitle>
+          <DialogDescription>Additional on-chain details for this NFT</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Name */}
           <div className="flex flex-col gap-y-1">
-            <h3 className="font-medium text-xs">Name</h3>
-            <p>{metadata.name}</p>
+            <h3 className="font-medium text-xs">Token ID</h3>
+            <p className="text-sm font-medium">{metadata.tokenId}</p>
           </div>
 
-          {/* Description */}
           <div className="flex flex-col gap-y-1">
-            <h3 className="font-medium text-xs">Description</h3>
-            <p>{metadata.description}</p>
+            <h3 className="font-medium text-xs">Commitment Hash</h3>
+            <p className="break-all text-sm">{metadata.commitmentHash}</p>
           </div>
 
-          {/* Attributes */}
-          {metadata.attributes.map((attribute) => (
-            <div key={attribute.trait_type} className="flex flex-col gap-y-1">
-              <span className="text-xs font-medium">
-                {attribute.trait_type}:
-              </span>
-              <span className="text-sm font-bold">{attribute.value}</span>
-            </div>
-          ))}
-
-          {/* Image */}
           <div className="flex flex-col gap-y-1">
-            <h3 className="font-medium text-xs">Image</h3>
-            <p className="break-all text-sm">{metadata.image}</p>
+            <h3 className="font-medium text-xs">Chain</h3>
+            <p className="text-sm">{metadata.chain}</p>
           </div>
         </div>
       </DialogContent>

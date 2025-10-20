@@ -1,7 +1,12 @@
+"use client";
+
 import { DUMMY_NFT } from "@/content/dummyNft";
 import NFTCard from "@/components/nft/nftCard";
+import { useCommitments } from "@/context/commitmentsContext";
+import { Loader2 } from "lucide-react";
 
 export default function Marketplace() {
+  const { commitments, loading } = useCommitments();
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16">
       <div className="text-center mb-16">
@@ -19,9 +24,22 @@ export default function Marketplace() {
       </h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 gap-y-16 my-16 justify-items-center">
-        {DUMMY_NFT.map((nft) => (
-          <NFTCard key={nft.contractAddress} metadata={nft} />
-        ))}
+        {loading ? (
+          <div className="flex justify-center items-center h-full">
+            <Loader2 className="w-10 h-10 animate-spin" />
+          </div>
+        ) : (
+          commitments.sort((a, b) => b.timestamp - a.timestamp).map((commitment) => (
+            <NFTCard
+              key={commitment.tokenId}
+              metadata={{
+                tokenId: commitment.tokenId,
+                commitmentHash: commitment.commitmentHash,
+                chain: "anvil",
+              }}
+            />
+          ))
+        )}
       </div>
     </div>
   );

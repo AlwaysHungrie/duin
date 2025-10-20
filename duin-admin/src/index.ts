@@ -1,12 +1,17 @@
 // Main application entry point for Duin Admin
 
 import express from "express";
+import cors from "cors";
 import { loadConfig, validateConfig } from "./config/index.js";
 import { BlockchainService } from "./services/blockchain.js";
 import { ApiService } from "./services/api.js";
 import { logger } from "./utils/logger.js";
 import { ContractConfig } from "./config/contract.js";
-import { errorMiddleware, loggingMiddleware, notFoundMiddleware } from "./utils/middleware.js";
+import {
+  errorMiddleware,
+  loggingMiddleware,
+  notFoundMiddleware,
+} from "./utils/middleware.js";
 
 const contractConfig = new ContractConfig();
 
@@ -27,7 +32,8 @@ try {
 const blockchainService = new BlockchainService(
   config.anvilRpcUrl,
   config.privateKey,
-  contractConfig,
+  config,
+  contractConfig
 );
 const apiService = new ApiService(blockchainService, config, contractConfig);
 
@@ -37,12 +43,18 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(loggingMiddleware);
+app.use(cors());
 
 // Routes
 app.get("/", (req, res) => apiService.handleHealthCheck(req, res));
 app.get("/wallet", (req, res) => apiService.handleWalletInfo(req, res));
-app.get("/contract", (req, res) => apiService.handleGetContractAddress(req, res));
+app.get("/contract", (req, res) =>
+  apiService.handleGetContractAddress(req, res)
+);
 app.post("/mint", (req, res) => apiService.handleMintNft(req, res));
+app.get("/commitments", (req, res) =>
+  apiService.handleGetCommitments(req, res)
+);
 
 // Error handling middleware
 app.use(errorMiddleware);
