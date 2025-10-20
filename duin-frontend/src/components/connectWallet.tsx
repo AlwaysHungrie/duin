@@ -23,7 +23,7 @@ export default function ConnectWallet() {
 
   if (authenticated && address) {
     return (
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 md:gap-4">
         <div
           className="text-sm text-gray-500 font-bold cursor-pointer hover:text-gray-700 transition-colors"
           onClick={handleAddressClick}

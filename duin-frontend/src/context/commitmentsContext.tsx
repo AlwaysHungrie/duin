@@ -1,6 +1,15 @@
 "use client";
-import { createContext, useContext, useEffect, useState } from "react";
+import { generateRandomMnemonic } from "@/lib/format";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import { toast } from "sonner";
+
+const USER_SECRET_KEY = "user_secret";
 
 export interface Commitment {
   tokenId: string;
@@ -12,12 +21,16 @@ export interface CommitmentsContextType {
   loading: boolean;
   commitments: Commitment[];
   setCommitments: (commitments: Commitment[]) => void;
+  userSecret: string;
+  handleUserSecretChange: (userSecret: string) => void;
 }
 
 export const CommitmentsContext = createContext<CommitmentsContextType>({
   loading: true,
   commitments: [],
   setCommitments: () => {},
+  userSecret: "",
+  handleUserSecretChange: () => {},
 });
 
 export const CommitmentsProvider = ({
@@ -27,10 +40,13 @@ export const CommitmentsProvider = ({
 }) => {
   const [loading, setLoading] = useState(true);
   const [commitments, setCommitments] = useState<Commitment[]>([]);
+  const [userSecret, setUserSecret] = useState<string>("");
 
-  const fetchCommitments = async () => {
+  const fetchCommitments = useCallback(async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/commitments`);
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/commitments`
+      );
       const data = await response.json();
       console.log(data);
       if (data?.success && data?.data?.commitments) {
@@ -42,15 +58,37 @@ export const CommitmentsProvider = ({
       toast.error("Error fetching commitments");
       setLoading(false);
     }
-  };
+  }, []);
+
+  const handleUserSecretChange = useCallback((userSecret: string) => {
+    setUserSecret(userSecret);
+    localStorage.setItem(USER_SECRET_KEY, userSecret);
+  }, []);
+
+  const initUserSecret = useCallback(() => {
+    const userSecret = localStorage.getItem(USER_SECRET_KEY);
+    console.log("found", userSecret);
+    if (userSecret) {
+      setUserSecret(userSecret);
+    } else {
+      handleUserSecretChange(generateRandomMnemonic());
+    }
+  }, [handleUserSecretChange]);
 
   useEffect(() => {
     fetchCommitments();
-  }, []);
-  
+    initUserSecret();
+  }, [fetchCommitments, initUserSecret]);
+
   return (
     <CommitmentsContext.Provider
-      value={{ loading, commitments, setCommitments }}
+      value={{
+        loading,
+        commitments,
+        setCommitments,
+        userSecret,
+        handleUserSecretChange,
+      }}
     >
       {children}
     </CommitmentsContext.Provider>

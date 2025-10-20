@@ -1,5 +1,6 @@
 import Image from "next/image";
 import ConnectWallet from "./connectWallet";
+import UserSecretDialog from "./userSecretDialog";
 
 export default function Header() {
   return (
@@ -9,6 +10,7 @@ export default function Header() {
           <Image src="/favicon.svg" alt="Duin" width={24} height={24} />
           <h1 className="text-2xl font-bold text-gray-900">Duin.fun</h1>
           <div className="ml-auto" />
+          <UserSecretDialog />
           <ConnectWallet />
         </div>
       </div>
