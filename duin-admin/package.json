@@ -1,0 +1,38 @@
+{
+  "name": "duin-admin",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "nodemon --exec \"tsx src/index.ts\"",
+    "test": "node dist/test-connection.js",
+    "test:connection": "node test-connection.js",
+    "clean": "rm -rf dist",
+    "prebuild": "npm run clean",
+    "lint": "echo \"Linting not configured\"",
+    "type-check": "tsc --noEmit",
+    "typechain": "typechain --target ethers-v6 --out-dir src/contractTypes ../contracts/out/PrivateMarket.sol/PrivateMarket.json",
+    "generate-types": "npm run typechain && npm run build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "ethers": "^6.13.2",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@typechain/ethers-v6": "^0.5.1",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.8.1",
+    "nodemon": "^3.1.10",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
+    "typechain": "^8.3.2",
+    "typescript": "^5.9.3"
+  }
+}
