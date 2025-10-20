@@ -5,15 +5,17 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract PrivateMarket is ReentrancyGuard, Ownable {
+    int256 public nftIndex;
+    // merkle tree
+    bytes32[] public commitments;
+    bytes32 public merkleRoot;
+    
     struct Bid {
         bytes32 bidNullifier;
         uint256 amount;
     }
     mapping(address => Bid) public bids;
     mapping(bytes32 => address) public bidNullifiers;
-
-    // Array of commitments (leafs of merkle tree)
-    bytes32[] public commitments;
 
     // Constructor to set the admin address
     // The TEE attestation of the admin also needs to be verified.
