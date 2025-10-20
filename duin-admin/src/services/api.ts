@@ -5,6 +5,7 @@ import { BlockchainService } from "./blockchain.js";
 import type { ApiResponse, WalletInfo, Config } from "../types/index.js";
 import type { ContractConfig } from "../config/contract.js";
 import { logger } from "../utils/logger.js";
+import { hashWords } from "../utils/format.js";
 
 export class ApiService {
   constructor(
@@ -25,7 +26,8 @@ export class ApiService {
           wallet: walletAddress,
           connection: connection.success ? "Connected" : "Disconnected",
           network: connection.network,
-          contractAddress: this.config.contractAddress || "Not deployed",
+          contractAddress:
+            this.contractConfig.getContractAddress() || "Not deployed",
         },
       };
 
@@ -81,6 +83,30 @@ export class ApiService {
       res.status(500).json({
         success: false,
         error: "Failed to get contract address",
+      });
+    }
+  }
+
+  // Mint a new nft, not meant to be called publicly
+  async handleMintNft(req: Request, res: Response): Promise<void> {
+    try {
+      const currentAddress = this.blockchainService.getWalletAddress();
+      const ownerSecret = this.config.ownerSecret;
+
+      const ownershipNullifier = hashWords([currentAddress, ownerSecret]);
+
+      console.log("ownershipNullifier:", ownershipNullifier);
+
+      const nft = await this.blockchainService.mintNft(ownershipNullifier);
+      res.json({
+        success: true,
+        data: nft,
+      });
+    } catch (error) {
+      logger.error("Failed to mint nft:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to mint nft",
       });
     }
   }

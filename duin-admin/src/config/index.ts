@@ -12,6 +12,7 @@ export function loadConfig(): Config {
   const privateKey = process.env.PRIVATE_KEY;
   const anvilChainId = parseInt(process.env.ANVIL_CHAIN_ID || '31337', 10);
   const publishTimestamp = parseInt(process.env.PUBLISH_TIMESTAMP || '0', 10);
+  const ownerSecret = process.env.OWNER_SECRET || '';
 
   if (!privateKey) {
     throw new Error('PRIVATE_KEY is required in environment variables');
@@ -22,7 +23,8 @@ export function loadConfig(): Config {
     anvilRpcUrl,
     privateKey,
     anvilChainId,
-    publishTimestamp
+    publishTimestamp,
+    ownerSecret
   };
 }
 
@@ -45,5 +47,9 @@ export function validateConfig(config: Config): void {
   
   if (isNaN(config.publishTimestamp) || config.publishTimestamp < 0) {
     throw new Error('PUBLISH_TIMESTAMP must be a non-negative number');
+  }
+
+  if (!config.ownerSecret) {
+    throw new Error('OWNER_SECRET is required');
   }
 }

@@ -3,11 +3,14 @@ pragma solidity ^0.8.20;
 
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {MerkleTree} from "@openzeppelin/contracts/utils/structs/MerkleTree.sol";
 
 contract PrivateMarket is ReentrancyGuard, Ownable {
     int256 public nftIndex;
+    
     // merkle tree
-    bytes32[] public commitments;
+    using MerkleTree for MerkleTree.Bytes32PushTree;
+    MerkleTree.Bytes32PushTree private merkleTree;
     bytes32 public merkleRoot;
     
     struct Bid {
@@ -19,9 +22,17 @@ contract PrivateMarket is ReentrancyGuard, Ownable {
 
     // Constructor to set the admin address
     // The TEE attestation of the admin also needs to be verified.
-    constructor() Ownable(msg.sender) {}
+    constructor() Ownable(msg.sender) {
+        // Initialize MerkleTree with depth 20 (supports up to 2^20 = 1,048,576 leaves)
+        // Using bytes32(0) as the zero value for empty leaves
+        merkleRoot = merkleTree.setup(20, bytes32(0));
+    }
 
     // Events
+    event NftMinted(
+        uint256 tokenId,
+        bytes32 commitment
+    );
     event BidPlaced(
         address indexed bidder,
         bytes32 bidNullifier,
@@ -29,6 +40,28 @@ contract PrivateMarket is ReentrancyGuard, Ownable {
     );
     event BidWithdrawn(address indexed bidder, uint256 amount);
     event BidAccepted(address indexed bidder, uint256 amount);
+
+    // Mint a new nft, can only be called by the owner
+    function mintNft(bytes32 ownershipNullifier) public onlyOwner {
+        // Create commitment by hashing ownershipNullifier and nftIndex using inline assembly
+        int256 currentNftIndex = nftIndex;
+        bytes32 commitment;
+        assembly {
+            mstore(0x00, ownershipNullifier)
+            mstore(0x20, currentNftIndex)
+            commitment := keccak256(0x00, 0x40)
+        }
+        
+        // Push commitment to MerkleTree and get updated root
+        (, bytes32 newRoot) = merkleTree.push(commitment);
+        merkleRoot = newRoot;
+        
+        // Increment nftIndex after successful push
+        nftIndex++;
+        
+        /// forge-lint: disable-next-line
+        emit NftMinted(uint256(currentNftIndex), commitment);
+    }
 
     function placeBid(bytes32 bidNullifier) public payable nonReentrant {
         // check if bidNullifier was already placed

@@ -1,17 +1,25 @@
 // Blockchain service for interacting with Anvil
 
 import { ethers } from "ethers";
-import type { WalletInfo } from "../types/index.js";
+import type { WalletInfo, NftMintedEvent } from "../types/index.js";
+import type { ContractConfig } from "../config/contract.js";
+import type { PrivateMarket } from "../contractTypes/index.js";
 
 export class BlockchainService {
   private provider: ethers.JsonRpcProvider;
   private wallet: ethers.Wallet;
   private rpcUrl: string;
+  private contractConfig: ContractConfig;
 
-  constructor(rpcUrl: string, privateKey: string) {
+  constructor(
+    rpcUrl: string,
+    privateKey: string,
+    contractConfig: ContractConfig
+  ) {
     this.rpcUrl = rpcUrl;
     this.provider = new ethers.JsonRpcProvider(rpcUrl);
     this.wallet = new ethers.Wallet(privateKey, this.provider);
+    this.contractConfig = contractConfig;
   }
 
   getWalletAddress(): string {
@@ -109,14 +117,7 @@ export class BlockchainService {
   // deploy contract
   async deployContract(): Promise<string> {
     try {
-      const { PrivateMarket__factory } = await import(
-        "../contractTypes/index.js"
-      );
-
-      // Create factory instance with the wallet as signer
-      const factory = new PrivateMarket__factory(this.wallet);
-
-      // Deploy the contract
+      const factory = this.contractConfig.getContractFactory(this.wallet);
       const contract = await factory.deploy();
 
       // Wait for deployment to complete
@@ -134,6 +135,55 @@ export class BlockchainService {
           error instanceof Error ? error.message : "Unknown error"
         }`
       );
+    }
+  }
+
+  // mint a new nft
+  async mintNft(ownershipNullifier: string): Promise<NftMintedEvent> {
+    try {
+      const contractAddress = this.contractConfig.getContractAddress();
+      if (!contractAddress) {
+        throw new Error(
+          "Contract not deployed. Please deploy the contract first."
+        );
+      }
+
+      const factory = this.contractConfig.getContractFactory(this.wallet);
+      const contract = factory.attach(contractAddress) as PrivateMarket;
+
+      const tx = await contract.mintNft(ownershipNullifier);
+      const receipt = await tx.wait();
+      console.log("receipt:", receipt);
+
+      // Extract the NftMinted event from the receipt
+      const nftMintedEvent = receipt?.logs?.find((log) => {
+        try {
+          const parsedLog = contract.interface.parseLog(log);
+          return parsedLog?.name === "NftMinted";
+        } catch {
+          return false;
+        }
+      });
+
+      if (!nftMintedEvent) {
+        throw new Error("NftMinted event not found in transaction receipt");
+      }
+
+      const parsedEvent = contract.interface.parseLog(nftMintedEvent);
+      if (!parsedEvent) {
+        throw new Error("Failed to parse NftMinted event");
+      }
+
+      const [tokenId, commitment] = parsedEvent.args;
+
+      return {
+        tokenId: tokenId.toString(),
+        commitment: commitment,
+        transactionHash: receipt?.hash || tx.hash,
+      };
+    } catch (error) {
+      console.error("Error minting nft:", error);
+      throw new Error("Failed to mint nft");
     }
   }
 

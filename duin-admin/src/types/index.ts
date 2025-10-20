@@ -38,4 +38,11 @@ export interface Config {
   anvilChainId: number;
   publishTimestamp: number;
   contractAddress?: string;
+  ownerSecret: string;
+}
+
+export interface NftMintedEvent {
+  tokenId: string;
+  commitment: string;
+  transactionHash: string;
 }

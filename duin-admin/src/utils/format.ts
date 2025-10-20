@@ -5,7 +5,6 @@ export const formatTransaction = (
   transaction: any,
   timestamp: number
 ): TransactionData => {
-  
   return {
     hash: transaction.hash,
     blockNumber: transaction.blockNumber,
@@ -20,4 +19,8 @@ export const formatTransaction = (
     data: transaction.data || "0x",
     timestamp: timestamp,
   };
+};
+
+export const hashWords = (words: string[]): string => {
+  return ethers.keccak256(ethers.toUtf8Bytes(words.join(""))).toString();
 };

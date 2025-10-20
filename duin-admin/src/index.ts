@@ -26,7 +26,8 @@ try {
 // Initialize services
 const blockchainService = new BlockchainService(
   config.anvilRpcUrl,
-  config.privateKey
+  config.privateKey,
+  contractConfig,
 );
 const apiService = new ApiService(blockchainService, config, contractConfig);
 
@@ -41,6 +42,7 @@ app.use(loggingMiddleware);
 app.get("/", (req, res) => apiService.handleHealthCheck(req, res));
 app.get("/wallet", (req, res) => apiService.handleWalletInfo(req, res));
 app.get("/contract", (req, res) => apiService.handleGetContractAddress(req, res));
+app.post("/mint", (req, res) => apiService.handleMintNft(req, res));
 
 // Error handling middleware
 app.use(errorMiddleware);
