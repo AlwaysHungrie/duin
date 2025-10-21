@@ -70,7 +70,6 @@ export default function NFTCard({ metadata }: { metadata: NFTMetadata }) {
 
       <CardFooter className="p-4 pt-0 flex flex-col gap-y-2">
         <PlaceBid
-          metadata={metadata}
           isDialogOpen={isPlaceBidDialogOpen}
           setIsDialogOpen={setIsPlaceBidDialogOpen}
         />

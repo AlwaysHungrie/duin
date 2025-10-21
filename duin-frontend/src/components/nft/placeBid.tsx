@@ -3,7 +3,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NFTMetadata } from "./nftCard";
 import {
   Dialog,
   DialogTrigger,
@@ -12,51 +11,47 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
-import { ethers } from "ethers";
 import {
-  getPrivateMarketContract,
-  generateBidNullifier,
   usePrivateMarketContract,
 } from "@/lib/contract";
 import { toast } from "sonner";
-import { CopyIcon, InfoIcon, RefreshCcwIcon } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { CopyIcon } from "lucide-react";
 import InfoTip from "../infoTip";
-import { generateRandomMnemonic } from "@/lib/format";
+import {
+  checkWalletAddress,
+  generateBidNullifier,
+} from "@/lib/format";
+import { useCommitments } from "@/context/commitmentsContext";
+import Link from "next/link";
 
 export default function PlaceBid({
-  metadata,
   isDialogOpen,
   setIsDialogOpen,
 }: {
-  metadata: NFTMetadata;
   isDialogOpen: boolean;
   setIsDialogOpen: (isDialogOpen: boolean) => void;
 }) {
-  const { user, authenticated } = usePrivy();
+  const { user, logout } = usePrivy();
   const { wallets } = useWallets();
-  const { checkIfBidExists, withdrawBid } = usePrivateMarketContract();
-  const [amount, setAmount] = useState("0");
-  const [bidNullifier, setBidNullifier] = useState<string>("");
+  const { userSecret } = useCommitments();
+  const { checkIfBidExists, withdrawBid, placeBid } =
+    usePrivateMarketContract();
+
   const [isLoading, setIsLoading] = useState(false);
   const [hasExistingBid, setHasExistingBid] = useState(false);
   const [isWithdrawing, setIsWithdrawing] = useState(false);
 
-  const [mnemonic, setMnemonic] = useState<string>("");
+  const [amount, setAmount] = useState("0");
   const [walletAddress, setWalletAddress] = useState<string>("");
+  const [checkPlaceBid, setCheckPlaceBid] = useState(false);
 
   const currentWalletAddress = user?.wallet?.address;
-
-  const handleGenerateNullifier = () => {
-    const newNullifier = generateBidNullifier();
-    setBidNullifier(newNullifier);
-  };
+  const bidNullifier = useMemo(
+    () => generateBidNullifier(walletAddress, userSecret),
+    [walletAddress, userSecret]
+  );
 
   const checkForExistingBid = async () => {
     try {
@@ -74,7 +69,6 @@ export default function PlaceBid({
       const success = await withdrawBid();
       if (success) {
         setHasExistingBid(false);
-        setIsDialogOpen(false);
       }
     } catch (error) {
       console.error("Error withdrawing bid:", error);
@@ -84,73 +78,46 @@ export default function PlaceBid({
   };
 
   const handlePlaceBid = async () => {
-    if (!authenticated || !user?.wallet) {
-      toast.error("Please connect your wallet first");
-      return;
-    }
-
-    if (!amount || !bidNullifier) {
-      toast.error("Please fill in all fields");
-      return;
-    }
-
-    // Check if user already has a bid
-    const hasBid = await checkIfBidExists();
-    if (hasBid) {
-      toast.error(
-        "You already have an existing bid. Please withdraw it first."
-      );
-      setHasExistingBid(true);
-      return;
-    }
-
     try {
       setIsLoading(true);
-
-      // Get the wallet provider
-      const ethereumProvider = await wallets[0].getEthereumProvider();
-      const provider = new ethers.BrowserProvider(ethereumProvider);
-      const signer = await provider.getSigner();
-
-      // Get the contract instance
-      const contract = getPrivateMarketContract(signer);
-
-      // Convert amount to wei
-      const amountInWei = ethers.parseEther(amount);
-
-      // Call the placeBid function
-      const tx = await contract.placeBid(bidNullifier, { value: amountInWei });
-
-      toast.success("Transaction submitted! Waiting for confirmation...");
-
-      // Wait for transaction confirmation
-      const receipt = await tx.wait();
-
-      if (receipt?.status === 1) {
-        toast.success("Bid placed successfully!");
+      // Check if user already has a bid
+      const hasBid = await checkIfBidExists();
+      if (hasBid) {
+        toast.error(
+          "You already have an existing bid. Please withdraw it first."
+        );
         setHasExistingBid(true);
-        setIsDialogOpen(false);
+        return;
+      }
+
+      const success = await placeBid(amount, bidNullifier);
+      if (success) {
+        setTimeout(() => {
+          setIsDialogOpen(false);
+        }, 1000);
+        setTimeout(() => {
+          setHasExistingBid(true);
+        }, 1200);
         // Reset form
         setAmount("");
-        setBidNullifier("");
-      } else {
-        toast.error("Transaction failed");
+        setWalletAddress("");
+        setCheckPlaceBid(false);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error placing bid:", error);
-      toast.error(error?.message || "Failed to place bid");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGenerateMnemonic = () => {
-    setMnemonic(generateRandomMnemonic());
+  const handleCopyMnemonic = () => {
+    navigator.clipboard.writeText(userSecret);
+    toast.success("Mnemonic copied to clipboard");
   };
 
-  const handleCopyMnemonic = () => {
-    navigator.clipboard.writeText(mnemonic);
-    toast.success("Mnemonic copied to clipboard");
+  const handleCopyBidNullifier = () => {
+    navigator.clipboard.writeText(bidNullifier);
+    toast.success("Bid nullifier copied to clipboard");
   };
 
   return (
@@ -159,13 +126,12 @@ export default function PlaceBid({
       onOpenChange={(open) => {
         if (open) {
           checkForExistingBid();
-          setMnemonic(generateRandomMnemonic());
         }
         setIsDialogOpen(open);
       }}
     >
       <DialogTrigger asChild>
-        <Button className="w-full" variant="default">
+        <Button className="w-full bg-brand hover:bg-brand/90" variant="default">
           {hasExistingBid ? "Manage Bid" : "Place Bid"}
         </Button>
       </DialogTrigger>
@@ -179,21 +145,32 @@ export default function PlaceBid({
         </DialogHeader>
 
         {hasExistingBid ? (
-          <div className="space-y-6">
-            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-yellow-800 font-medium">
-                You already have an active bid for this NFT.
-              </p>
-              <p className="text-yellow-700 text-sm mt-1">
-                To place a new bid, you must first withdraw your existing bid.
-              </p>
+          <div className="space-y-0">
+            <div className="flex items-center gap-2 font-medium">
+              You are only allowed to place one active bid per address
             </div>
+
+            <p className="text-sm text-gray-500">
+              Switch to another address or Withdraw your current
+              bid
+            </p>
+
+            <Button
+              onClick={() => {
+                logout();
+                setIsDialogOpen(false);
+              }}
+              className="w-full mt-8"
+              variant="secondary"
+            >
+              Log out
+            </Button>
 
             <Button
               onClick={handleWithdrawBid}
               disabled={isWithdrawing}
-              className="w-full"
-              variant="destructive"
+              className="w-full mt-2"
+              variant="outline"
             >
               {isWithdrawing ? "Withdrawing Bid..." : "Withdraw Bid"}
             </Button>
@@ -203,7 +180,6 @@ export default function PlaceBid({
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm font-medium">
                 Bid Amount (ETH)
-                <InfoTip text="The bid amount is publicly visible but cannot be linked back to an nft" />
               </div>
               <Input
                 id="amount"
@@ -214,12 +190,16 @@ export default function PlaceBid({
                 onChange={(e) => setAmount(e.target.value)}
                 disabled={isLoading}
               />
+              <p className="text-xs text-gray-500">
+                The bid amount is visible publicly but cannot be traced back to
+                an NFT or address.
+              </p>
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm font-medium">
-                Your secret
-                <InfoTip text="Keep this safe. Losing it will result in permanent loss of nft ownership." />
+                Your secret (hidden)
+                <InfoTip text="Losing it will result in losing your NFT and bid" />
               </div>
               <div className="flex items-center gap-2">
                 <CopyIcon
@@ -229,21 +209,17 @@ export default function PlaceBid({
                 <Input
                   id="mnemonic"
                   type="text"
-                  value={mnemonic}
+                  value={userSecret}
                   readOnly
                   className="bg-gray-100"
-                />
-                <RefreshCcwIcon
-                  className="size-4 cursor-pointer"
-                  onClick={handleGenerateMnemonic}
                 />
               </div>
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm font-medium">
-                Your wallet address
-                <InfoTip text="Use a wallet address different from the one currently connected but you still own" />
+                Your wallet address (hidden)
+                <InfoTip text="Cannot be same as current wallet address" />
               </div>
               <div className="flex flex-col items-center gap-1">
                 <Input
@@ -266,34 +242,64 @@ export default function PlaceBid({
 
             <div className="space-y-2">
               <Label htmlFor="bidNullifier">Bid Nullifier</Label>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
+                <CopyIcon
+                  className="size-4 cursor-pointer"
+                  onClick={handleCopyBidNullifier}
+                />
                 <Input
                   id="bidNullifier"
                   type="text"
-                  placeholder="Click Generate to create a random nullifier"
+                  placeholder="Wallet address is required"
                   value={bidNullifier}
-                  onChange={(e) => setBidNullifier(e.target.value)}
-                  disabled={isLoading}
-                  className="flex-1"
+                  readOnly
+                  className="flex-1 bg-gray-100"
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleGenerateNullifier}
-                  disabled={isLoading}
-                >
-                  Generate
-                </Button>
               </div>
               <p className="text-xs text-gray-500">
-                A unique identifier for your bid. Keep this private until you
-                want to reveal it.
+                The bid nullifier keeps your identity private. You need to share
+                it with the current NFT owner so they can approve your
+                bid.&nbsp;
+                <Link
+                  href={process.env.NEXT_PUBLIC_DISCORD_LINK!}
+                  target="_blank"
+                  className="text-blue-500 hover:text-blue-600 font-bold"
+                >
+                  Discord
+                </Link>
               </p>
+            </div>
+
+            <div className="flex items-start space-x-3">
+              <input
+                type="checkbox"
+                id="checkPlaceBid"
+                checked={checkPlaceBid}
+                onChange={(e) => setCheckPlaceBid(e.target.checked)}
+                className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <Label
+                htmlFor="checkPlaceBid"
+                className="text-sm text-gray-700 cursor-pointer leading-5 font-medium gap-0"
+              >
+                I have saved my&nbsp;<span className="font-bold">Secret</span>
+                &nbsp;and&nbsp;
+                <span className="font-bold">Bid Nullifier</span>&nbsp;in a safe
+                place.
+              </Label>
             </div>
 
             <Button
               onClick={handlePlaceBid}
-              disabled={isLoading || !amount || !bidNullifier}
+              disabled={
+                isLoading ||
+                !amount ||
+                !bidNullifier ||
+                !walletAddress ||
+                !checkWalletAddress(walletAddress) ||
+                currentWalletAddress === walletAddress ||
+                !checkPlaceBid
+              }
               className="w-full"
             >
               {isLoading ? "Placing Bid..." : "Place Bid"}
