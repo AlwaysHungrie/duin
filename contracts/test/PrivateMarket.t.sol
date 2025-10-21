@@ -182,80 +182,9 @@ contract PrivateMarketTest is Test {
         assertEq(marketplace.bidNullifiers(nullifier2), alice);
     }
 
-    function test_AcceptBid() public {
-        bytes32 nullifier = keccak256("alice_bid");
-        uint256 bidAmount = 1 ether;
-        address currentOwner = makeAddr("currentOwner");
-        
-        // Alice places bid
-        vm.prank(alice);
-        marketplace.placeBid{value: bidAmount}(nullifier);
-        
-        uint256 currentOwnerBalanceBefore = currentOwner.balance;
-        
-        // Owner accepts bid
-        marketplace.acceptBid(nullifier, currentOwner);
-        
-        // Check bid was removed
-        (bytes32 storedNullifier, uint256 amount) = marketplace.bids(alice);
-        assertEq(storedNullifier, bytes32(0));
-        assertEq(amount, 0);
-        
-        // Check nullifier mapping was cleared
-        assertEq(marketplace.bidNullifiers(nullifier), address(0));
-        
-        // Check funds were transferred to current owner
-        assertEq(currentOwner.balance, currentOwnerBalanceBefore + bidAmount);
-    }
-
-    function test_AcceptBidFailsWhenBidNotFound() public {
-        bytes32 nullifier = keccak256("nonexistent_bid");
-        address currentOwner = makeAddr("currentOwner");
-        
-        vm.expectRevert("Bid not found for this nullifier");
-        marketplace.acceptBid(nullifier, currentOwner);
-    }
-
-    function test_AcceptBidFailsWhenNotOwner() public {
-        bytes32 nullifier = keccak256("alice_bid");
-        address currentOwner = makeAddr("currentOwner");
-        
-        // Alice places bid
-        vm.prank(alice);
-        marketplace.placeBid{value: 1 ether}(nullifier);
-        
-        // Non-owner tries to accept bid
-        vm.prank(alice);
-        vm.expectRevert();
-        marketplace.acceptBid(nullifier, currentOwner);
-    }
-
-    function test_AcceptBidWithZeroAmount() public {
-        bytes32 nullifier = keccak256("alice_bid");
-        address currentOwner = makeAddr("currentOwner");
-        
-        // Alice places bid with zero amount
-        vm.prank(alice);
-        marketplace.placeBid{value: 0}(nullifier);
-        
-        uint256 currentOwnerBalanceBefore = currentOwner.balance;
-        
-        // Owner accepts bid
-        marketplace.acceptBid(nullifier, currentOwner);
-        
-        // Check bid was removed
-        (bytes32 storedNullifier, uint256 amount) = marketplace.bids(alice);
-        assertEq(storedNullifier, bytes32(0));
-        assertEq(amount, 0);
-        
-        // Check no funds were transferred
-        assertEq(currentOwner.balance, currentOwnerBalanceBefore);
-    }
-
     function test_Events() public {
         bytes32 nullifier = keccak256("alice_bid");
         uint256 bidAmount = 1 ether;
-        address currentOwner = makeAddr("currentOwner");
         
         // Test BidPlaced event
         vm.prank(alice);
@@ -268,15 +197,6 @@ contract PrivateMarketTest is Test {
         vm.expectEmit(true, false, false, true);
         emit PrivateMarket.BidWithdrawn(alice, nullifier, bidAmount);
         marketplace.withdrawBid();
-        
-        // Place bid again for acceptBid test
-        vm.prank(alice);
-        marketplace.placeBid{value: bidAmount}(nullifier);
-        
-        // Test BidAccepted event
-        vm.expectEmit(true, false, false, true);
-        emit PrivateMarket.BidAccepted(alice, bidAmount);
-        marketplace.acceptBid(nullifier, currentOwner);
     }
 
     // Reentrancy protection tests
@@ -315,38 +235,6 @@ contract PrivateMarketTest is Test {
         malicious.withdrawBid();
     }
 
-    // Owner functionality tests
-    function test_OwnerCanAcceptBid() public {
-        bytes32 nullifier = keccak256("alice_bid");
-        address currentOwner = makeAddr("currentOwner");
-        
-        // Alice places bid
-        vm.prank(alice);
-        marketplace.placeBid{value: 1 ether}(nullifier);
-        
-        // Owner (this contract) accepts bid
-        marketplace.acceptBid(nullifier, currentOwner);
-        
-        // Check bid was removed
-        (bytes32 storedNullifier, uint256 amount) = marketplace.bids(alice);
-        assertEq(storedNullifier, bytes32(0));
-        assertEq(amount, 0);
-    }
-
-    function test_NonOwnerCannotAcceptBid() public {
-        bytes32 nullifier = keccak256("alice_bid");
-        address currentOwner = makeAddr("currentOwner");
-        
-        // Alice places bid
-        vm.prank(alice);
-        marketplace.placeBid{value: 1 ether}(nullifier);
-        
-        // Non-owner tries to accept bid
-        vm.prank(alice);
-        vm.expectRevert();
-        marketplace.acceptBid(nullifier, currentOwner);
-    }
-
     // Edge cases and additional tests
     function test_WithdrawBidWithZeroAmount() public {
         bytes32 nullifier = keccak256("alice_bid");
@@ -368,23 +256,6 @@ contract PrivateMarketTest is Test {
         
         // Check balance unchanged (no funds to return)
         assertEq(alice.balance, aliceBalanceBefore);
-    }
-
-    function test_AcceptBidAfterWithdraw() public {
-        bytes32 nullifier = keccak256("alice_bid");
-        address currentOwner = makeAddr("currentOwner");
-        
-        // Alice places bid
-        vm.prank(alice);
-        marketplace.placeBid{value: 1 ether}(nullifier);
-        
-        // Alice withdraws bid
-        vm.prank(alice);
-        marketplace.withdrawBid();
-        
-        // Owner tries to accept already withdrawn bid
-        vm.expectRevert("Bid not found for this nullifier");
-        marketplace.acceptBid(nullifier, currentOwner);
     }
 }
 

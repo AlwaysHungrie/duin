@@ -18,6 +18,7 @@ export class BlockchainService {
   private rpcUrl: string;
   private config: Config;
   private contractConfig: ContractConfig;
+  private nonce: number | null = null;
 
   constructor(
     rpcUrl: string,
@@ -34,6 +35,15 @@ export class BlockchainService {
 
   getWalletAddress(): string {
     return this.wallet.address;
+  }
+
+  private async getNextNonce(): Promise<number> {
+    if (this.nonce === null) {
+      this.nonce = await this.provider.getTransactionCount(this.wallet.address, "pending");
+    } else {
+      this.nonce++;
+    }
+    return this.nonce;
   }
 
   async getWalletInfo(): Promise<WalletInfo> {
@@ -161,7 +171,8 @@ export class BlockchainService {
       const factory = this.contractConfig.getContractFactory(this.wallet);
       const contract = factory.attach(contractAddress) as PrivateMarket;
 
-      const tx = await contract.mintNft(ownershipNullifier);
+      const nonce = await this.getNextNonce();
+      const tx = await contract.mintNft(ownershipNullifier, { nonce });
       const receipt = await tx.wait();
       console.log("receipt:", receipt);
 
@@ -194,6 +205,48 @@ export class BlockchainService {
     } catch (error) {
       console.error("Error minting nft:", error);
       throw new Error("Failed to mint nft");
+    }
+  }
+
+  // Transfer nft
+  async transferToken(
+    bidNullifier: string,
+    tokenNullifier: string,
+    receiver: string
+  ): Promise<string> {
+    try {
+      const contractAddress = this.contractConfig.getContractAddress();
+      if (!contractAddress) {
+        throw new Error(
+          "Contract not deployed. Please deploy the contract first."
+        );
+      }
+
+      const factory = this.contractConfig.getContractFactory(this.wallet);
+      const contract = factory.attach(contractAddress) as PrivateMarket;
+
+      const nonce = await this.getNextNonce();
+      const tx = await contract.transferToken(
+        bidNullifier,
+        tokenNullifier,
+        receiver,
+        { nonce }
+      );
+      const receipt = await tx.wait();
+
+      if (!receipt?.hash) {
+        throw new Error("Transaction failed");
+      }
+
+      if (receipt.status !== 1) {
+        throw new Error("Transaction reverted");
+      }
+
+      console.log("receipt:", receipt, receipt.status);
+      return receipt?.hash;
+    } catch (error) {
+      console.log("Failed to transfer token", error);
+      throw new Error("Failed to transfer token", { cause: error });
     }
   }
 

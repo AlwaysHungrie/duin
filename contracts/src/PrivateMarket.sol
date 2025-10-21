@@ -7,18 +7,22 @@ import {MerkleTree} from "@openzeppelin/contracts/utils/structs/MerkleTree.sol";
 
 contract PrivateMarket is ReentrancyGuard, Ownable {
     int256 public nftIndex;
-    
+
     // merkle tree
     using MerkleTree for MerkleTree.Bytes32PushTree;
     MerkleTree.Bytes32PushTree private merkleTree;
     bytes32 public merkleRoot;
-    
+
+    // bid nullifiers to track price
     struct Bid {
         bytes32 bidNullifier;
         uint256 amount;
     }
     mapping(address => Bid) public bids;
     mapping(bytes32 => address) public bidNullifiers;
+
+    // token nullifier to prevent double spending
+    mapping(bytes32 => bool) public tokenNullifiers;
 
     // Constructor to set the admin address
     // The TEE attestation of the admin also needs to be verified.
@@ -29,17 +33,17 @@ contract PrivateMarket is ReentrancyGuard, Ownable {
     }
 
     // Events
-    event NftMinted(
-        uint256 tokenId,
-        bytes32 commitment
-    );
+    event NftMinted(uint256 tokenId, bytes32 commitment);
     event BidPlaced(
         address indexed bidder,
         bytes32 bidNullifier,
         uint256 amount
     );
-    event BidWithdrawn(address indexed bidder, bytes32 bidNullifier, uint256 amount);
-    event BidAccepted(address indexed bidder, uint256 amount);
+    event BidWithdrawn(
+        address indexed bidder,
+        bytes32 bidNullifier,
+        uint256 amount
+    );
 
     // Mint a new nft, can only be called by the owner
     function mintNft(bytes32 ownershipNullifier) public onlyOwner {
@@ -51,14 +55,14 @@ contract PrivateMarket is ReentrancyGuard, Ownable {
             mstore(0x20, currentNftIndex)
             commitment := keccak256(0x00, 0x40)
         }
-        
+
         // Push commitment to MerkleTree and get updated root
         (, bytes32 newRoot) = merkleTree.push(commitment);
         merkleRoot = newRoot;
-        
+
         // Increment nftIndex after successful push
         nftIndex++;
-        
+
         /// forge-lint: disable-next-line
         emit NftMinted(uint256(currentNftIndex), commitment);
     }
@@ -102,26 +106,37 @@ contract PrivateMarket is ReentrancyGuard, Ownable {
         emit BidWithdrawn(msg.sender, bid.bidNullifier, amount);
     }
 
-    function acceptBid(
+    function transferToken(
         bytes32 bidNullifier,
-        address currentOwner
-    ) public onlyOwner {
+        bytes32 tokenNullifier,
+        address receiver
+    ) public nonReentrant {
         // check if bidNullifier was placed
         if (bidNullifiers[bidNullifier] == address(0)) {
             revert("Bid not found for this nullifier");
         }
 
-        address bidder = bidNullifiers[bidNullifier];
-        Bid memory bid = bids[bidNullifiers[bidNullifier]];
-        delete bids[bidder];
-        delete bidNullifiers[bidNullifier];
-
-        // transfer amount to currentOwner
-        (bool success, ) = payable(currentOwner).call{value: bid.amount}("");
-        if (!success) {
-            revert("Transfer failed");
+        // check if tokenNullifier was already spent
+        if (tokenNullifiers[tokenNullifier]) {
+            revert("Token already spent");
         }
 
-        emit BidAccepted(bidder, bid.amount);
+        // add the tokenNullifier to the mapping
+        tokenNullifiers[tokenNullifier] = true;
+
+        Bid memory bid = bids[bidNullifiers[bidNullifier]];
+        uint256 amount = bid.amount;
+
+        // delete bid first to prevent reentrancy
+        delete bids[bidNullifiers[bidNullifier]];
+        delete bidNullifiers[bidNullifier];
+
+        // transfer amount to receiver
+        if (amount > 0) {
+            (bool success, ) = payable(receiver).call{value: amount}("");
+            if (!success) {
+                revert("Transfer failed");
+            }
+        }
     }
 }

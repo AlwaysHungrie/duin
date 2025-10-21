@@ -5,7 +5,13 @@ import { BlockchainService } from "./blockchain.js";
 import type { ApiResponse, WalletInfo, Config } from "../types/index.js";
 import type { ContractConfig } from "../config/contract.js";
 import { logger } from "../utils/logger.js";
-import { hashWords } from "../utils/format.js";
+import {
+  generateBidNullifier,
+  generateBidSecret,
+  generateCommitment,
+  generateTokenNullifier,
+  hashWords,
+} from "../utils/format.js";
 
 export class ApiService {
   constructor(
@@ -92,13 +98,11 @@ export class ApiService {
   async handleMintNft(req: Request, res: Response): Promise<void> {
     try {
       const currentAddress = this.blockchainService.getWalletAddress();
-      const ownerSecret = this.config.ownerSecret;
+      const ownerSecretPhrase = this.config.ownerSecret;
 
-      const ownershipNullifier = hashWords([currentAddress, ownerSecret]);
+      const ownerSecret = hashWords([currentAddress, ownerSecretPhrase]);
 
-      console.log("ownershipNullifier:", ownershipNullifier);
-
-      const nft = await this.blockchainService.mintNft(ownershipNullifier);
+      const nft = await this.blockchainService.mintNft(ownerSecret);
       res.json({
         success: true,
         data: nft,
@@ -150,6 +154,74 @@ export class ApiService {
         error: "Fetching bids failed",
       };
       res.status(500).json(response);
+    }
+  }
+
+  async handleTransferToken(req: Request, res: Response): Promise<void> {
+    try {
+      const {
+        senderAddress,
+        senderSecretPhrase,
+        tokenId,
+        receiverSecret,
+        fundsReceiverAddress,
+      } = req.body;
+
+      await this.blockchainService.updateCommitments();
+      await this.blockchainService.updateBids();
+
+      // generate commitment
+      const senderSecret = generateBidSecret(senderAddress, senderSecretPhrase);
+      const commitment = generateCommitment(senderSecret, tokenId);
+
+      // check if commitment is valid
+      const commitments = this.contractConfig.getCommitments();
+      const validCommitment = commitments.find(
+        (c) => c.commitmentHash === commitment
+      );
+      if (!validCommitment) {
+        throw new Error("Invalid commitment");
+      }
+
+      // generate bid nullifier
+      const bidNullifier = generateBidNullifier(receiverSecret, commitment);
+
+      // check if bid nullifier is valid
+      const bids = this.contractConfig.getBids();
+      const validBid = bids.find((b) => b.bidNullifier === bidNullifier);
+      if (!validBid) {
+        throw new Error("Bid not found");
+      }
+
+      // token nullifier
+      const tokenNullifier = generateTokenNullifier(
+        senderAddress,
+        senderSecretPhrase,
+        commitment
+      );
+
+      // call transferToken function
+      const transactionHash = await this.blockchainService.transferToken(
+        bidNullifier,
+        tokenNullifier,
+        fundsReceiverAddress
+      );
+
+      // finally mint a new nft to the receiver
+      await this.blockchainService.mintNft(receiverSecret);
+
+      res.json({
+        success: true,
+        data: {
+          transactionHash,
+        },
+      });
+    } catch (error) {
+      console.log("Failed to transfer token:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to transfer token",
+      });
     }
   }
 }

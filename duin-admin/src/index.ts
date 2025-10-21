@@ -56,6 +56,7 @@ app.get("/commitments", (req, res) =>
   apiService.handleGetCommitments(req, res)
 );
 app.get("/bids", (req, res) => apiService.handleGetBids(req, res));
+app.post("/transfer", (req, res) => apiService.handleTransferToken(req, res));
 
 // Error handling middleware
 app.use(errorMiddleware);
