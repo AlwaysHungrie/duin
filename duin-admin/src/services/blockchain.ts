@@ -19,6 +19,7 @@ export class BlockchainService {
   private config: Config;
   private contractConfig: ContractConfig;
   private nonce: number | null = null;
+  private gasPrice: bigint | null = null;
 
   constructor(
     rpcUrl: string,
@@ -48,6 +49,116 @@ export class BlockchainService {
 
   async resetNonce(): Promise<void> {
     this.nonce = null;
+  }
+
+  private async getGasPrice(): Promise<bigint> {
+    if (this.gasPrice === null) {
+      await this.refreshGasPrice();
+    }
+    return this.gasPrice!;
+  }
+
+  async refreshGasPrice(): Promise<void> {
+    try {
+      const feeData = await this.provider.getFeeData();
+      // Use gasPrice if available, otherwise use maxFeePerGas
+      this.gasPrice = feeData.gasPrice || feeData.maxFeePerGas || BigInt(20000000000); // 20 gwei fallback
+      console.log(`Updated gas price: ${ethers.formatUnits(this.gasPrice, "gwei")} gwei`);
+    } catch (error) {
+      console.warn("Failed to fetch gas price, using fallback:", error);
+      this.gasPrice = BigInt(20000000000); // 20 gwei fallback
+    }
+  }
+
+  async getGasInfo(): Promise<{
+    gasPrice: string;
+    gasPriceGwei: string;
+    estimatedDeploymentGas: string;
+    estimatedDeploymentCost: string;
+  }> {
+    const gasPrice = await this.getGasPrice();
+    const deploymentGas = await this.estimateGasForDeployment();
+    const totalCost = gasPrice * deploymentGas;
+    
+    return {
+      gasPrice: gasPrice.toString(),
+      gasPriceGwei: ethers.formatUnits(gasPrice, "gwei"),
+      estimatedDeploymentGas: deploymentGas.toString(),
+      estimatedDeploymentCost: ethers.formatEther(totalCost),
+    };
+  }
+
+  private async estimateGasForDeployment(): Promise<bigint> {
+    try {
+      const factory = this.contractConfig.getContractFactory(this.wallet);
+      const deploymentData = await factory.getDeployTransaction();
+      
+      if (!deploymentData || !deploymentData.data) {
+        throw new Error("Failed to get deployment data");
+      }
+
+      const gasEstimate = await this.provider.estimateGas({
+        data: deploymentData.data,
+        from: this.wallet.address,
+      });
+
+      // Add 20% buffer for safety
+      return (gasEstimate * BigInt(120)) / BigInt(100);
+    } catch (error) {
+      console.warn("Failed to estimate gas for deployment, using fallback:", error);
+      // Fallback gas limit for contract deployment
+      return BigInt(3000000);
+    }
+  }
+
+  private async estimateGasForMint(ownershipNullifier: string): Promise<bigint> {
+    try {
+      const contractAddress = this.contractConfig.getContractAddress();
+      if (!contractAddress) {
+        throw new Error("Contract not deployed");
+      }
+
+      const factory = this.contractConfig.getContractFactory(this.wallet);
+      const contract = factory.attach(contractAddress) as PrivateMarket;
+
+      const gasEstimate = await contract.mintNft.estimateGas(ownershipNullifier);
+      
+      // Add 10% buffer for safety
+      return (gasEstimate * BigInt(110)) / BigInt(100);
+    } catch (error) {
+      console.warn("Failed to estimate gas for mint, using fallback:", error);
+      // Fallback gas limit for minting
+      return BigInt(200000);
+    }
+  }
+
+  private async estimateGasForTransfer(
+    bidNullifier: string,
+    tokenNullifier: string,
+    receiver: string
+  ): Promise<bigint> {
+    try {
+      const contractAddress = this.contractConfig.getContractAddress();
+      if (!contractAddress) {
+        throw new Error("Contract not deployed");
+      }
+
+      const factory = this.contractConfig.getContractFactory(this.wallet);
+      const contract = factory.attach(contractAddress) as PrivateMarket;
+
+      const gasEstimate = await contract.transferToken.estimateGas(
+        bidNullifier,
+        tokenNullifier,
+        receiver
+      );
+      
+      // Add 10% buffer for safety
+      return (gasEstimate * BigInt(110)) / BigInt(100);
+    } catch (error) {
+      console.warn("Failed to estimate gas for transfer, using fallback:", error);
+      // Fallback gas limit for transfer
+      return BigInt(150000);
+    }
   }
 
   async getWalletInfo(): Promise<WalletInfo> {
@@ -141,8 +252,21 @@ export class BlockchainService {
   // deploy contract
   async deployContract(): Promise<string> {
     try {
+      console.log("Estimating gas for contract deployment...");
+      const gasInfo = await this.getGasInfo();
+      
+      console.log(`Estimated gas limit: ${gasInfo.estimatedDeploymentGas}`);
+      console.log(`Gas price: ${gasInfo.gasPriceGwei} gwei`);
+      console.log(`Estimated deployment cost: ${gasInfo.estimatedDeploymentCost} ETH`);
+      
+      const gasLimit = BigInt(gasInfo.estimatedDeploymentGas);
+      const gasPrice = BigInt(gasInfo.gasPrice);
+      
       const factory = this.contractConfig.getContractFactory(this.wallet);
-      const contract = await factory.deploy(); 
+      const contract = await factory.deploy({
+        gasLimit,
+        gasPrice,
+      }); 
 
       // Wait for deployment to complete
       await contract.waitForDeployment();
@@ -196,7 +320,16 @@ export class BlockchainService {
         const contract = factory.attach(contractAddress) as PrivateMarket;
 
         const nonce = await this.getNextNonce();
-        const tx = await contract.mintNft(ownershipNullifier, { nonce });
+        const gasLimit = await this.estimateGasForMint(ownershipNullifier);
+        const gasPrice = await this.getGasPrice();
+        
+        console.log(`Minting NFT - Gas limit: ${gasLimit.toString()}, Gas price: ${ethers.formatUnits(gasPrice, "gwei")} gwei`);
+        
+        const tx = await contract.mintNft(ownershipNullifier, { 
+          nonce,
+          gasLimit,
+          gasPrice,
+        });
         const receipt = await tx.wait();
         console.log("receipt:", receipt);
 
@@ -269,11 +402,20 @@ export class BlockchainService {
         const contract = factory.attach(contractAddress) as PrivateMarket;
 
         const nonce = await this.getNextNonce();
+        const gasLimit = await this.estimateGasForTransfer(bidNullifier, tokenNullifier, receiver);
+        const gasPrice = await this.getGasPrice();
+        
+        console.log(`Transferring token - Gas limit: ${gasLimit.toString()}, Gas price: ${ethers.formatUnits(gasPrice, "gwei")} gwei`);
+        
         const tx = await contract.transferToken(
           bidNullifier,
           tokenNullifier,
           receiver,
-          { nonce }
+          { 
+            nonce,
+            gasLimit,
+            gasPrice,
+          }
         );
         const receipt = await tx.wait();
 
@@ -331,7 +473,7 @@ export class BlockchainService {
 
       const currentBlock = await this.provider.getBlockNumber();
       const blockTimestampCache = new Map<number, number>();
-      const batchSize = 2000;
+      const batchSize = 500;
 
       const bidEvents: BidEvent[] = [];
 
@@ -428,7 +570,7 @@ export class BlockchainService {
 
       const currentBlock = await this.provider.getBlockNumber();
       const blockTimestampCache = new Map<number, number>();
-      const batchSize = 2000;
+      const batchSize = 500;
 
       const commitments: Commitment[] = [];
 

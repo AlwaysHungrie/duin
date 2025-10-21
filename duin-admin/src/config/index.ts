@@ -14,6 +14,7 @@ export function loadConfig(): Config {
   const publishTimestamp = parseInt(process.env.PUBLISH_TIMESTAMP || '0', 10);
   const mintSecret = process.env.MINT_SECRET || '';
   const corsOrigin = process.env.CORS_ORIGIN || '*';
+  const contractAddress = process.env.CONTRACT_ADDRESS || '';
 
   if (!privateKey) {
     throw new Error('PRIVATE_KEY is required in environment variables');
@@ -26,7 +27,8 @@ export function loadConfig(): Config {
     anvilChainId,
     publishTimestamp,
     mintSecret,
-    corsOrigin
+    corsOrigin,
+    contractAddress
   };
 }
 

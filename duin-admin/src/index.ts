@@ -73,11 +73,14 @@ async function startServer() {
     }
 
     // Get last deployed contract
-    let lastDeployedContract = await blockchainService.getLastDeployedContract(
-      config.publishTimestamp
-    );
-    if (lastDeployedContract) {
-      contractConfig.setContractAddress(lastDeployedContract);
+    // let lastDeployedContract = await blockchainService.getLastDeployedContract(
+    //   config.publishTimestamp
+    // );
+    // if (lastDeployedContract) {
+    //   contractConfig.setContractAddress(lastDeployedContract);
+    // }
+    if (config.contractAddress) {
+      contractConfig.setContractAddress(config.contractAddress);
     }
 
     // Start HTTP server

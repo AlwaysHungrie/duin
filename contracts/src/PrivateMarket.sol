@@ -27,9 +27,10 @@ contract PrivateMarket is ReentrancyGuard, Ownable {
     // Constructor to set the admin address
     // The TEE attestation of the admin also needs to be verified.
     constructor() Ownable(msg.sender) {
-        // Initialize MerkleTree with depth 20 (supports up to 2^20 = 1,048,576 leaves)
+        // Initialize MerkleTree with depth 16 (supports up to 2^16 = 65,536 leaves)
         // Using bytes32(0) as the zero value for empty leaves
-        merkleRoot = merkleTree.setup(20, bytes32(0));
+        // Reduced depth to save gas during deployment
+        merkleRoot = merkleTree.setup(16, bytes32(0));
     }
 
     // Events

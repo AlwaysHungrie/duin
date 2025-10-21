@@ -20,9 +20,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           accentColor: "#676FFF",
         },
         defaultChain: {
-          id: 31337,
-          name: 'Anvil Local',
-          network: 'anvil',
+          id: 8453,
+          name: 'Base',
+          network: 'base',
           nativeCurrency: {
             name: 'Ether',
             symbol: 'ETH',
@@ -30,18 +30,18 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           },
           rpcUrls: {
             default: {
-              http: ['http://127.0.0.1:8545'],
+              http: ['https://base.llamarpc.com'],
             },
             public: {
-              http: ['http://127.0.0.1:8545'],
+              http: ['https://base.llamarpc.com'],
             },
           },
         },
         supportedChains: [
           {
-            id: 31337,
-            name: 'Anvil Local',
-            network: 'anvil',
+            id: 8453,
+            name: 'Base',
+            network: 'base',
             nativeCurrency: {
               name: 'Ether',
               symbol: 'ETH',
@@ -49,10 +49,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
             },
             rpcUrls: {  
               default: {
-                http: ['http://127.0.0.1:8545'],
+                http: ['https://base.llamarpc.com'],
               },
               public: {
-                http: ['http://127.0.0.1:8545'],
+                http: ['https://base.llamarpc.com'],
               },
             },
           },
