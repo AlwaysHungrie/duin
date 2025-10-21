@@ -41,7 +41,7 @@ export default function NFTCard({ metadata }: { metadata: NFTMetadata }) {
             <div className="absolute inset-0 flex flex-col justify-center items-center text-center text-white transform rotate-4 px-2">
               <div className="text-white">
                 <p className="text-[0.7rem] leading-tight font-mono">
-                  This could have been a ticket, or maybe not.
+                  This ticket could have meant something, or maybe not.
                 </p>
 
                 <h3 className="text-base font-bold my-3">

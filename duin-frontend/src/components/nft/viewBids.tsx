@@ -42,6 +42,7 @@ export default function ViewBids({
   const [acceptingBid, setAcceptingBid] = useState<string | null>(null);
   const [showReceiverForm, setShowReceiverForm] = useState<string | null>(null);
   const [receiverAddress, setReceiverAddress] = useState<string>("");
+  const [noBidsFound, setNoBidsFound] = useState(false);
 
   const handleViewBids = useCallback(
     (bidSecrets: string[]) => {
@@ -49,6 +50,11 @@ export default function ViewBids({
       setDecryptedBids(
         bids.filter((bid) => bidNullifiers.has(bid.bidNullifier))
       );
+      if (decryptedBids.length === 0) {
+        setNoBidsFound(true);
+      } else {
+        setNoBidsFound(false);
+      }
     },
     [bids]
   );
@@ -138,15 +144,15 @@ export default function ViewBids({
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-xl max-h-[50vh] overflow-y-auto p-6 gap-0">
-        <DialogHeader className="h-0">
-          <DialogTitle />
+        <DialogHeader>
+          <DialogTitle>All bids are hidden</DialogTitle>
           <DialogDescription />
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-6 mt-6">
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm font-medium">
-              Please enter all the Bid Secrets shared with you separated by a
+              Please enter all the "Bid Secrets" shared with you separated by a
               space.
             </div>
             <div className="flex items-center gap-2">
@@ -168,7 +174,7 @@ export default function ViewBids({
           </div>
         </div>
 
-        {decryptedBids.length > 0 && (
+        {decryptedBids.length > 0 ? (
           <div className="space-y-6 mt-6">
             {decryptedBids.map((bid) => {
               // Find the corresponding bid secret from the input
@@ -273,6 +279,10 @@ export default function ViewBids({
               );
             })}
           </div>
+        ) : noBidsFound ? (
+          <div className="text-center text-gray-500 mt-6 text-sm">No bids found</div>
+        ) : (
+          <></>
         )}
       </DialogContent>
     </Dialog>

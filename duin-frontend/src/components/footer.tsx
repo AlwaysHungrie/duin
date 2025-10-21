@@ -11,8 +11,9 @@ export default function Footer() {
           </div>
           <div className="flex flex-col items-center mt-6">
             {[
-              { link: "/learn", text: "Learn how Duin works (in 3 minutes)" },
-              { link: "#", text: "Terms and Conditions" },
+              { link: "/learn", text: "Learn how Duin works (in 7 minutes)" },
+              { link: "/terms-and-conditions", text: "Terms and Conditions" },
+              { link: process.env.NEXT_PUBLIC_DISCORD_LINK!, text: "Join our Discord" },
             ].map((item) => (
               <Link
                 href={item.link}
