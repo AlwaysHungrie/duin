@@ -53,3 +53,10 @@ export interface Commitment {
   commitmentHash: string;
   timestamp: number;
 }
+
+export interface BidEvent {
+  type: "placed" | "withdrawn";
+  bidNullifier: string;
+  amount: string;
+  timestamp: number;
+}

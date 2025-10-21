@@ -70,14 +70,15 @@ export default function NFTCard({ metadata }: { metadata: NFTMetadata }) {
 
       <CardFooter className="p-4 pt-0 flex flex-col gap-y-2">
         <PlaceBid
+          commitmentHash={metadata.commitmentHash}
           isDialogOpen={isPlaceBidDialogOpen}
           setIsDialogOpen={setIsPlaceBidDialogOpen}
         />
-        {/* <ViewBids
-          metadata={metadata}
+        <ViewBids
+          commitmentHash={metadata.commitmentHash}
           isDialogOpen={isViewBidsDialogOpen}
           setIsDialogOpen={setIsViewBidsDialogOpen}
-        /> */}
+        />
         <NFTDetails
           metadata={metadata}
           isDialogOpen={isNFTDialogOpen}

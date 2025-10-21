@@ -17,12 +17,19 @@ export interface Commitment {
   timestamp: number;
 }
 
+export interface Bid {
+  bidNullifier: string;
+  amount: string;
+  timestamp: number;
+}
+
 export interface CommitmentsContextType {
   loading: boolean;
   commitments: Commitment[];
   setCommitments: (commitments: Commitment[]) => void;
   userSecret: string;
   handleUserSecretChange: (userSecret: string) => void;
+  bids: Bid[];
 }
 
 export const CommitmentsContext = createContext<CommitmentsContextType>({
@@ -31,6 +38,7 @@ export const CommitmentsContext = createContext<CommitmentsContextType>({
   setCommitments: () => {},
   userSecret: "",
   handleUserSecretChange: () => {},
+  bids: [],
 });
 
 export const CommitmentsProvider = ({
@@ -41,6 +49,7 @@ export const CommitmentsProvider = ({
   const [loading, setLoading] = useState(true);
   const [commitments, setCommitments] = useState<Commitment[]>([]);
   const [userSecret, setUserSecret] = useState<string>("");
+  const [bids, setBids] = useState<Bid[]>([]);
 
   const fetchCommitments = useCallback(async () => {
     try {
@@ -56,6 +65,24 @@ export const CommitmentsProvider = ({
     } catch (error) {
       console.error("Error fetching commitments:", error);
       toast.error("Error fetching commitments");
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchBids = useCallback(async () => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/bids`
+      );
+      const data = await response.json();
+      console.log(data);
+      if (data?.success && data?.data?.bids) {
+        setBids(data.data.bids);
+      }
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching bids:", error);
+      toast.error("Error fetching bids");
       setLoading(false);
     }
   }, []);
@@ -77,8 +104,9 @@ export const CommitmentsProvider = ({
 
   useEffect(() => {
     fetchCommitments();
+    fetchBids();
     initUserSecret();
-  }, [fetchCommitments, initUserSecret]);
+  }, [fetchCommitments, fetchBids, initUserSecret]);
 
   return (
     <CommitmentsContext.Provider
@@ -87,6 +115,7 @@ export const CommitmentsProvider = ({
         commitments,
         setCommitments,
         userSecret,
+        bids,
         handleUserSecretChange,
       }}
     >

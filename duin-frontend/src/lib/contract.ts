@@ -4,6 +4,7 @@ import { ConnectedWallet, usePrivy, useWallets } from "@privy-io/react-auth";
 import { ethers } from "ethers";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { generateBidNullifier } from "./format";
 
 // Contract address from deployment
 export const PRIVATE_MARKET_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS!;
@@ -79,16 +80,18 @@ export const usePrivateMarketContract = () => {
   }, [authenticated, user, wallets]);
 
   const placeBid = useCallback(
-    async (amount: string, bidNullifier: string) => {
+    async (amount: string, bidSecret: string, commitmentHash: string) => {
       if (!authenticated || !user?.wallet) {
         toast.error("Please connect your wallet first");
         return;
       }
 
-      if (!amount || !bidNullifier) {
+      if (!amount || !bidSecret) {
         toast.error("Please fill in all fields");
         return;
       }
+
+      const bidNullifier = generateBidNullifier(bidSecret, commitmentHash);
 
       try {
         // Get the wallet provider

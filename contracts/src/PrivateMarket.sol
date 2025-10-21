@@ -38,7 +38,7 @@ contract PrivateMarket is ReentrancyGuard, Ownable {
         bytes32 bidNullifier,
         uint256 amount
     );
-    event BidWithdrawn(address indexed bidder, uint256 amount);
+    event BidWithdrawn(address indexed bidder, bytes32 bidNullifier, uint256 amount);
     event BidAccepted(address indexed bidder, uint256 amount);
 
     // Mint a new nft, can only be called by the owner
@@ -99,7 +99,7 @@ contract PrivateMarket is ReentrancyGuard, Ownable {
                 revert("Transfer failed");
             }
         }
-        emit BidWithdrawn(msg.sender, amount);
+        emit BidWithdrawn(msg.sender, bid.bidNullifier, amount);
     }
 
     function acceptBid(

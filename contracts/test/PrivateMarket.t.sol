@@ -266,7 +266,7 @@ contract PrivateMarketTest is Test {
         // Test BidWithdrawn event
         vm.prank(alice);
         vm.expectEmit(true, false, false, true);
-        emit PrivateMarket.BidWithdrawn(alice, bidAmount);
+        emit PrivateMarket.BidWithdrawn(alice, nullifier, bidAmount);
         marketplace.withdrawBid();
         
         // Place bid again for acceptBid test

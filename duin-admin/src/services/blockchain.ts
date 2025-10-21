@@ -6,9 +6,11 @@ import type {
   NftMintedEvent,
   Config,
   Commitment,
+  BidEvent,
 } from "../types/index.js";
 import type { ContractConfig } from "../config/contract.js";
 import type { PrivateMarket } from "../contractTypes/index.js";
+import { logger } from "../utils/logger.js";
 
 export class BlockchainService {
   private provider: ethers.JsonRpcProvider;
@@ -195,9 +197,106 @@ export class BlockchainService {
     }
   }
 
+  // read all events BidPlaced, BidWithdrawn, till the tillTimestamp
+  async updateBids() {
+    let lastTimestamp = this.config.publishTimestamp;
+    let lastEventTimestamp = this.config.publishTimestamp;
+
+    const bids = this.contractConfig.getBidEvents();
+    if (bids?.length && bids[bids.length - 1]?.timestamp !== undefined) {
+      lastEventTimestamp = bids[bids.length - 1]!.timestamp;
+    }
+
+    try {
+      const contractAddress = this.contractConfig.getContractAddress();
+      if (!contractAddress) {
+        throw new Error(
+          "Contract not deployed. Please deploy the contract first."
+        );
+      }
+
+      const factory = this.contractConfig.getContractFactory(this.wallet);
+      const contract = factory.attach(contractAddress) as PrivateMarket;
+
+      const currentBlock = await this.provider.getBlockNumber();
+      const blockTimestampCache = new Map<number, number>();
+      const batchSize = 2000;
+
+      const bidEvents: BidEvent[] = [];
+
+      let toBlock = currentBlock;
+      while (toBlock >= 0) {
+        const fromBlock = Math.max(0, toBlock - batchSize + 1);
+
+        // Query BidPlaced events in this block range
+        const bidPlacedEvents = await contract.queryFilter(
+          contract.filters.BidPlaced(),
+          fromBlock,
+          toBlock
+        );
+        const bidWithdrawnEvents = await contract.queryFilter(
+          contract.filters.BidWithdrawn(),
+          fromBlock,
+          toBlock
+        );
+
+        const blockBidEvents = await Promise.all(
+          [...bidPlacedEvents, ...bidWithdrawnEvents].map(async (ev, index) => {
+            const blockNumber = ev.blockNumber;
+            let ts = blockTimestampCache.get(blockNumber);
+            if (ts === undefined) {
+              const block = await this.provider.getBlock(blockNumber);
+              ts = block?.timestamp ?? 0;
+              blockTimestampCache.set(blockNumber, ts);
+            }
+            if (lastEventTimestamp <= 0 || ts > lastEventTimestamp) {
+              console.log("ev:", ev);
+              const bidNullifier = (ev.args?.[1] as string) ?? ""; // bytes32
+              const amount = ev.args?.[2] ?? ""; // uint256
+              if (bidNullifier) {
+                return {
+                  type:
+                    index < bidPlacedEvents.length
+                      ? ("placed" as const)
+                      : ("withdrawn" as const),
+                  bidNullifier,
+                  amount: amount.toString(),
+                  timestamp: ts,
+                };
+              }
+            }
+          })
+        );
+
+        bidEvents.push(
+          ...blockBidEvents
+            .filter((event) => event !== undefined)
+            .sort((a, b) => a.timestamp - b.timestamp)
+        );
+
+        // If the oldest block in this batch is at or before the cutoff, we can stop.
+        if (lastEventTimestamp > 0) {
+          const oldestBlock = await this.provider.getBlock(fromBlock);
+          if (oldestBlock && oldestBlock.timestamp <= lastEventTimestamp) {
+            break;
+          }
+        }
+
+        if (fromBlock === 0) break;
+        toBlock = fromBlock - 1;
+      }
+
+      this.contractConfig.updateBids(bidEvents);
+    } catch (error) {
+      logger.info("Error fetching commitments:", error);
+      throw new Error("Failed to fetch commitments");
+    }
+  }
+
   // read all events NftMinted till the tillTimestamp
   async updateCommitments() {
     let lastTimestamp = this.config.publishTimestamp;
+    let lastEventTimestamp = this.config.publishTimestamp;
     const commitments = this.contractConfig.getCommitments();
     if (
       commitments?.length &&
@@ -217,9 +316,10 @@ export class BlockchainService {
       const contract = factory.attach(contractAddress) as PrivateMarket;
 
       const currentBlock = await this.provider.getBlockNumber();
-      const batchSize = 2000;
-      const commitments: Commitment[] = [];
       const blockTimestampCache = new Map<number, number>();
+      const batchSize = 2000;
+
+      const commitments: Commitment[] = [];
 
       let toBlock = currentBlock;
       while (toBlock >= 0) {
@@ -244,7 +344,11 @@ export class BlockchainService {
             const commitment = (ev.args?.[1] as string) ?? ""; // bytes32
             const tokenId = (ev.args?.[0].toString() ?? "") as string;
             if (commitment) {
-              commitments.push({ tokenId, commitmentHash: commitment, timestamp: ts });
+              commitments.push({
+                tokenId,
+                commitmentHash: commitment,
+                timestamp: ts,
+              });
             }
           }
         }
@@ -266,7 +370,7 @@ export class BlockchainService {
         commitments.sort((a, b) => a.timestamp - b.timestamp)
       );
     } catch (error) {
-      console.error("Error fetching commitments:", error);
+      logger.info("Error fetching commitments:", error);
       throw new Error("Failed to fetch commitments");
     }
   }

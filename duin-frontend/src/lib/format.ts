@@ -19,9 +19,31 @@ export const checkWalletAddress = (address: string) => {
   return ethers.isAddress(address);
 };
 
-export const generateBidNullifier = (walletAddress: string, userSecret: string) => {
-  if (!walletAddress || !userSecret || !checkWalletAddress(walletAddress)) return "";
+export const generateBidSecret = (
+  walletAddress: string,
+  userSecret: string
+) => {
+  if (!walletAddress || !userSecret || !checkWalletAddress(walletAddress))
+    return "";
   // keccak256(concat(walletAddress, userSecret))
   const hexString = ethers.toUtf8Bytes(walletAddress + userSecret);
   return ethers.keccak256(hexString);
+};
+
+export const generateBidNullifier = (
+  bidSecret: string,
+  commitmentHash: string
+) => {
+  if (!bidSecret || !commitmentHash) throw new Error("Invalid bid secret or commitment hash");
+  // keccak256(concat(bidSecret, commitmentHash))
+  const hexString = ethers.toUtf8Bytes(bidSecret + commitmentHash);
+  return ethers.keccak256(hexString);
+};
+
+export const formatAmount = (amount: string) => {
+  return ethers.formatEther(amount);
+};
+
+export const formatTimestamp = (timestamp: number) => {
+  return new Date(timestamp * 1000).toLocaleString();
 };

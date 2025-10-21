@@ -26,6 +26,7 @@ export class ApiService {
           wallet: walletAddress,
           connection: connection.success ? "Connected" : "Disconnected",
           network: connection.network,
+          publishTimestamp: this.config.publishTimestamp,
           contractAddress:
             this.contractConfig.getContractAddress() || "Not deployed",
         },
@@ -117,16 +118,36 @@ export class ApiService {
       const response: ApiResponse = {
         success: true,
         data: {
-          message: "Duin Admin API is running",
           commitments: this.contractConfig.getCommitments(),
         },
       };
 
       res.json(response);
     } catch (error) {
+      console.log("Failed to get commitments:", error);
       const response: ApiResponse = {
         success: false,
         error: "Fetching commitments failed",
+      };
+      res.status(500).json(response);
+    }
+  }
+
+  async handleGetBids(req: Request, res: Response): Promise<void> {
+    try {
+      await this.blockchainService.updateBids();
+      const response: ApiResponse = {
+        success: true,
+        data: {
+          bids: this.contractConfig.getBids(),
+        },
+      };
+      res.json(response);
+    } catch (error) {
+      console.log("Failed to get bids:", error);
+      const response: ApiResponse = {
+        success: false,
+        error: "Fetching bids failed",
       };
       res.status(500).json(response);
     }

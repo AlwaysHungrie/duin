@@ -13,23 +13,20 @@ import {
 } from "@/components/ui/dialog";
 import { useMemo, useState } from "react";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
-import {
-  usePrivateMarketContract,
-} from "@/lib/contract";
+import { usePrivateMarketContract } from "@/lib/contract";
 import { toast } from "sonner";
 import { CopyIcon } from "lucide-react";
 import InfoTip from "../infoTip";
-import {
-  checkWalletAddress,
-  generateBidNullifier,
-} from "@/lib/format";
+import { checkWalletAddress, generateBidSecret } from "@/lib/format";
 import { useCommitments } from "@/context/commitmentsContext";
 import Link from "next/link";
 
 export default function PlaceBid({
+  commitmentHash,
   isDialogOpen,
   setIsDialogOpen,
 }: {
+  commitmentHash: string;
   isDialogOpen: boolean;
   setIsDialogOpen: (isDialogOpen: boolean) => void;
 }) {
@@ -48,8 +45,8 @@ export default function PlaceBid({
   const [checkPlaceBid, setCheckPlaceBid] = useState(false);
 
   const currentWalletAddress = user?.wallet?.address;
-  const bidNullifier = useMemo(
-    () => generateBidNullifier(walletAddress, userSecret),
+  const bidSecret = useMemo(
+    () => generateBidSecret(walletAddress, userSecret),
     [walletAddress, userSecret]
   );
 
@@ -90,7 +87,7 @@ export default function PlaceBid({
         return;
       }
 
-      const success = await placeBid(amount, bidNullifier);
+      const success = await placeBid(amount, bidSecret, commitmentHash);
       if (success) {
         setTimeout(() => {
           setIsDialogOpen(false);
@@ -115,9 +112,9 @@ export default function PlaceBid({
     toast.success("Mnemonic copied to clipboard");
   };
 
-  const handleCopyBidNullifier = () => {
-    navigator.clipboard.writeText(bidNullifier);
-    toast.success("Bid nullifier copied to clipboard");
+  const handleCopyBidSecret = () => {
+    navigator.clipboard.writeText(bidSecret);
+    toast.success("Bid secret copied to clipboard");
   };
 
   return (
@@ -151,8 +148,7 @@ export default function PlaceBid({
             </div>
 
             <p className="text-sm text-gray-500">
-              Switch to another address or Withdraw your current
-              bid
+              Switch to another address or Withdraw your current bid
             </p>
 
             <Button
@@ -192,7 +188,8 @@ export default function PlaceBid({
               />
               <p className="text-xs text-gray-500">
                 The bid amount is visible publicly but cannot be traced back to
-                an NFT or address.
+                an address. Sharing the Bid Nullifier with anyone will reveal a
+                bid was placed for this NFT.
               </p>
             </div>
 
@@ -241,23 +238,23 @@ export default function PlaceBid({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="bidNullifier">Bid Nullifier</Label>
+              <Label htmlFor="bidSecret">Bid Secret</Label>
               <div className="flex gap-2 items-center">
                 <CopyIcon
                   className="size-4 cursor-pointer"
-                  onClick={handleCopyBidNullifier}
+                  onClick={handleCopyBidSecret}
                 />
                 <Input
                   id="bidNullifier"
                   type="text"
                   placeholder="Wallet address is required"
-                  value={bidNullifier}
+                  value={bidSecret}
                   readOnly
                   className="flex-1 bg-gray-100"
                 />
               </div>
               <p className="text-xs text-gray-500">
-                The bid nullifier keeps your identity private. You need to share
+                The bid secret keeps your identity private. You need to share
                 it with the current NFT owner so they can approve your
                 bid.&nbsp;
                 <Link
@@ -284,7 +281,7 @@ export default function PlaceBid({
               >
                 I have saved my&nbsp;<span className="font-bold">Secret</span>
                 &nbsp;and&nbsp;
-                <span className="font-bold">Bid Nullifier</span>&nbsp;in a safe
+                <span className="font-bold">Bid Secret</span>&nbsp;in a safe
                 place.
               </Label>
             </div>
@@ -294,7 +291,7 @@ export default function PlaceBid({
               disabled={
                 isLoading ||
                 !amount ||
-                !bidNullifier ||
+                !bidSecret ||
                 !walletAddress ||
                 !checkWalletAddress(walletAddress) ||
                 currentWalletAddress === walletAddress ||

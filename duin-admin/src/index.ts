@@ -55,6 +55,7 @@ app.post("/mint", (req, res) => apiService.handleMintNft(req, res));
 app.get("/commitments", (req, res) =>
   apiService.handleGetCommitments(req, res)
 );
+app.get("/bids", (req, res) => apiService.handleGetBids(req, res));
 
 // Error handling middleware
 app.use(errorMiddleware);
