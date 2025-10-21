@@ -78,7 +78,6 @@ export class ApiService {
       } else {
         const newContractAddress =
           await this.blockchainService.deployContract();
-        this.contractConfig.setContractAddress(newContractAddress);
         res.json({
           success: true,
           created: true,
@@ -218,7 +217,10 @@ export class ApiService {
       res.status(500).json({
         success: false,
         error: "Failed to transfer token",
-        cause: error instanceof Error ? error.cause ?? error.message : "Unknown error",
+        cause:
+          error instanceof Error
+            ? error.cause ?? error.message
+            : "Unknown error",
       });
     } finally {
       await this.blockchainService.resetNonce();

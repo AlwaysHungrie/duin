@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/dialog";
 import { useCallback, useState } from "react";
 import { Input } from "../ui/input";
-import { Label } from "../ui/label";
 import {
   formatAmount,
   formatTimestamp,

@@ -29,7 +29,33 @@ export default function NFTCard({ metadata }: { metadata: NFTMetadata }) {
   return (
     <Card className="w-80 overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 p-0">
       <CardHeader className="p-0">
-        <div className="relative w-full h-64 bg-gray-100 flex items-center justify-center">NFT #{metadata.tokenId}</div>
+        <div className="relative w-full h-64 bg-gray-100 flex items-center justify-center overflow-hidden">
+          <div className="relative h-full w-auto">
+            <Image
+              src="/ticket.svg"
+              alt="NFT"
+              width={256}
+              height={256}
+              className="h-full w-auto object-contain rotate-4"
+            />
+            <div className="absolute inset-0 flex flex-col justify-center items-center text-center text-white transform rotate-4 px-2">
+              <div className="text-white">
+                <p className="text-[0.7rem] leading-tight font-mono">
+                  This could have been a ticket, or maybe not.
+                </p>
+
+                <h3 className="text-base font-bold my-3">
+                  TICKET #{metadata.tokenId}
+                </h3>
+
+                <p className="text-[0.7rem] leading-tight font-mono">
+                  This ticket might or might not have already been sold to
+                  someone, <span className="font-extrabold">we shall never know.</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </CardHeader>
 
       <CardContent className="p-4 pt-0">
@@ -40,11 +66,15 @@ export default function NFTCard({ metadata }: { metadata: NFTMetadata }) {
         <div className="flex flex-col gap-y-2 mt-4">
           <div className="flex text-xs">
             <span className="text-gray-500">Commitment Hash:</span>
-            <span className="ml-auto font-medium">{truncateText(metadata.commitmentHash, 10)}</span>
+            <span className="ml-auto font-medium">
+              {truncateText(metadata.commitmentHash, 10)}
+            </span>
             <button
               type="button"
               className="ml-2 text-gray-400 hover:text-gray-600 focus:outline-none"
-              onClick={() => navigator.clipboard.writeText(metadata.commitmentHash)}
+              onClick={() =>
+                navigator.clipboard.writeText(metadata.commitmentHash)
+              }
               title="Copy Commitment Hash"
             >
               <Copy size={16} />
@@ -53,7 +83,7 @@ export default function NFTCard({ metadata }: { metadata: NFTMetadata }) {
 
           <div className="flex justify-between text-xs">
             <span className="text-gray-500">Owner:</span>
-            <span className="font-medium">Hidden</span>
+            <span className="font-medium">Unknown</span>
           </div>
 
           <div className="flex justify-between text-xs">

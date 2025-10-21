@@ -142,14 +142,30 @@ export class BlockchainService {
   async deployContract(): Promise<string> {
     try {
       const factory = this.contractConfig.getContractFactory(this.wallet);
-      const contract = await factory.deploy();
+      const contract = await factory.deploy(); 
 
       // Wait for deployment to complete
-      const receipt = await contract.waitForDeployment();
-      console.log("receipt:", receipt);
-
+      await contract.waitForDeployment();
+      
       // Get the deployed contract address
       const contractAddress = await contract.getAddress();
+      this.contractConfig.setContractAddress(contractAddress);
+
+      // mint 10 nfts with proper nonce management
+      for (let i = 0; i < 10; i++) {
+        console.log(`Minting nft ${i + 1}`);
+        try {
+          await this.mintNft(this.config.mintSecret);
+          // Add a small delay to ensure transaction is processed
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (error) {
+          console.error(`Failed to mint NFT ${i + 1}:`, error);
+          // Reset nonce on error to get fresh nonce
+          this.resetNonce();
+          throw error;
+        }
+      }
+      this.resetNonce();
 
       return contractAddress;
     } catch (error) {
@@ -164,52 +180,71 @@ export class BlockchainService {
 
   // mint a new nft
   async mintNft(ownershipNullifier: string): Promise<NftMintedEvent> {
-    try {
-      const contractAddress = this.contractConfig.getContractAddress();
-      if (!contractAddress) {
-        throw new Error(
-          "Contract not deployed. Please deploy the contract first."
-        );
-      }
+    const maxRetries = 3;
+    let lastError: Error | null = null;
 
-      const factory = this.contractConfig.getContractFactory(this.wallet);
-      const contract = factory.attach(contractAddress) as PrivateMarket;
-
-      const nonce = await this.getNextNonce();
-      const tx = await contract.mintNft(ownershipNullifier, { nonce });
-      const receipt = await tx.wait();
-      console.log("receipt:", receipt);
-
-      // Extract the NftMinted event from the receipt
-      const nftMintedEvent = receipt?.logs?.find((log) => {
-        try {
-          const parsedLog = contract.interface.parseLog(log);
-          return parsedLog?.name === "NftMinted";
-        } catch {
-          return false;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const contractAddress = this.contractConfig.getContractAddress();
+        if (!contractAddress) {
+          throw new Error(
+            "Contract not deployed. Please deploy the contract first."
+          );
         }
-      });
 
-      if (!nftMintedEvent) {
-        throw new Error("NftMinted event not found in transaction receipt");
+        const factory = this.contractConfig.getContractFactory(this.wallet);
+        const contract = factory.attach(contractAddress) as PrivateMarket;
+
+        const nonce = await this.getNextNonce();
+        const tx = await contract.mintNft(ownershipNullifier, { nonce });
+        const receipt = await tx.wait();
+        console.log("receipt:", receipt);
+
+        // Extract the NftMinted event from the receipt
+        const nftMintedEvent = receipt?.logs?.find((log) => {
+          try {
+            const parsedLog = contract.interface.parseLog(log);
+            return parsedLog?.name === "NftMinted";
+          } catch {
+            return false;
+          }
+        });
+
+        if (!nftMintedEvent) {
+          throw new Error("NftMinted event not found in transaction receipt");
+        }
+
+        const parsedEvent = contract.interface.parseLog(nftMintedEvent);
+        if (!parsedEvent) {
+          throw new Error("Failed to parse NftMinted event");
+        }
+
+        const [tokenId, commitment] = parsedEvent.args;
+
+        return {
+          tokenId: tokenId.toString(),
+          commitment: commitment,
+          transactionHash: receipt?.hash || tx.hash,
+        };
+      } catch (error) {
+        lastError = error as Error;
+        console.error(`Error minting nft (attempt ${attempt + 1}):`, error);
+        
+        // If it's a nonce error, reset nonce and retry
+        if (error instanceof Error && error.message.includes("nonce")) {
+          console.log("Nonce error detected, resetting nonce and retrying...");
+          this.resetNonce();
+          // Add a small delay before retry
+          await new Promise(resolve => setTimeout(resolve, 200));
+          continue;
+        }
+        
+        // For other errors, don't retry
+        break;
       }
-
-      const parsedEvent = contract.interface.parseLog(nftMintedEvent);
-      if (!parsedEvent) {
-        throw new Error("Failed to parse NftMinted event");
-      }
-
-      const [tokenId, commitment] = parsedEvent.args;
-
-      return {
-        tokenId: tokenId.toString(),
-        commitment: commitment,
-        transactionHash: receipt?.hash || tx.hash,
-      };
-    } catch (error) {
-      console.error("Error minting nft:", error);
-      throw new Error("Failed to mint nft");
     }
+
+    throw new Error(`Failed to mint nft after ${maxRetries} attempts: ${lastError?.message || "Unknown error"}`);
   }
 
   // Transfer nft
@@ -218,40 +253,59 @@ export class BlockchainService {
     tokenNullifier: string,
     receiver: string
   ): Promise<string> {
-    try {
-      const contractAddress = this.contractConfig.getContractAddress();
-      if (!contractAddress) {
-        throw new Error(
-          "Contract not deployed. Please deploy the contract first."
+    const maxRetries = 3;
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const contractAddress = this.contractConfig.getContractAddress();
+        if (!contractAddress) {
+          throw new Error(
+            "Contract not deployed. Please deploy the contract first."
+          );
+        }
+
+        const factory = this.contractConfig.getContractFactory(this.wallet);
+        const contract = factory.attach(contractAddress) as PrivateMarket;
+
+        const nonce = await this.getNextNonce();
+        const tx = await contract.transferToken(
+          bidNullifier,
+          tokenNullifier,
+          receiver,
+          { nonce }
         );
+        const receipt = await tx.wait();
+
+        if (!receipt?.hash) {
+          throw new Error("Transaction failed");
+        }
+
+        if (receipt.status !== 1) {
+          throw new Error("Transaction reverted");
+        }
+
+        console.log("receipt:", receipt, receipt.status);
+        return receipt?.hash;
+      } catch (error) {
+        lastError = error as Error;
+        console.error(`Failed to transfer token (attempt ${attempt + 1}):`, error);
+        
+        // If it's a nonce error, reset nonce and retry
+        if (error instanceof Error && error.message.includes("nonce")) {
+          console.log("Nonce error detected, resetting nonce and retrying...");
+          this.resetNonce();
+          // Add a small delay before retry
+          await new Promise(resolve => setTimeout(resolve, 200));
+          continue;
+        }
+        
+        // For other errors, don't retry
+        break;
       }
-
-      const factory = this.contractConfig.getContractFactory(this.wallet);
-      const contract = factory.attach(contractAddress) as PrivateMarket;
-
-      const nonce = await this.getNextNonce();
-      const tx = await contract.transferToken(
-        bidNullifier,
-        tokenNullifier,
-        receiver,
-        { nonce }
-      );
-      const receipt = await tx.wait();
-
-      if (!receipt?.hash) {
-        throw new Error("Transaction failed");
-      }
-
-      if (receipt.status !== 1) {
-        throw new Error("Transaction reverted");
-      }
-
-      console.log("receipt:", receipt, receipt.status);
-      return receipt?.hash;
-    } catch (error) {
-      console.log("Failed to transfer token", error);
-      throw new Error("Failed to transfer token", { cause: error });
     }
+
+    throw new Error(`Failed to transfer token after ${maxRetries} attempts: ${lastError?.message || "Unknown error"}`);
   }
 
   // read all events BidPlaced, BidWithdrawn, till the tillTimestamp
