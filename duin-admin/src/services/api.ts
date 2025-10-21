@@ -97,12 +97,9 @@ export class ApiService {
   // Mint a new nft, not meant to be called publicly
   async handleMintNft(req: Request, res: Response): Promise<void> {
     try {
-      const currentAddress = this.blockchainService.getWalletAddress();
-      const ownerSecretPhrase = this.config.ownerSecret;
+      const mintSecret = this.config.mintSecret;
 
-      const ownerSecret = hashWords([currentAddress, ownerSecretPhrase]);
-
-      const nft = await this.blockchainService.mintNft(ownerSecret);
+      const nft = await this.blockchainService.mintNft(mintSecret);
       res.json({
         success: true,
         data: nft,
@@ -223,6 +220,8 @@ export class ApiService {
         error: "Failed to transfer token",
         cause: error instanceof Error ? error.cause ?? error.message : "Unknown error",
       });
+    } finally {
+      await this.blockchainService.resetNonce();
     }
   }
 }

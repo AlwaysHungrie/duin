@@ -46,6 +46,10 @@ export class BlockchainService {
     return this.nonce;
   }
 
+  async resetNonce(): Promise<void> {
+    this.nonce = null;
+  }
+
   async getWalletInfo(): Promise<WalletInfo> {
     const balance = await this.getWalletBalance(this.wallet.address);
     return {

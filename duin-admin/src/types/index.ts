@@ -38,7 +38,7 @@ export interface Config {
   anvilChainId: number;
   publishTimestamp: number;
   contractAddress?: string;
-  ownerSecret: string;
+  mintSecret: string;
   corsOrigin: string;
 }
 

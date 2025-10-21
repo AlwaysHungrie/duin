@@ -12,7 +12,7 @@ export function loadConfig(): Config {
   const privateKey = process.env.PRIVATE_KEY;
   const anvilChainId = parseInt(process.env.ANVIL_CHAIN_ID || '31337', 10);
   const publishTimestamp = parseInt(process.env.PUBLISH_TIMESTAMP || '0', 10);
-  const ownerSecret = process.env.OWNER_SECRET || '';
+  const mintSecret = process.env.MINT_SECRET || '';
   const corsOrigin = process.env.CORS_ORIGIN || '*';
 
   if (!privateKey) {
@@ -25,7 +25,7 @@ export function loadConfig(): Config {
     privateKey,
     anvilChainId,
     publishTimestamp,
-    ownerSecret,
+    mintSecret,
     corsOrigin
   };
 }
@@ -51,7 +51,7 @@ export function validateConfig(config: Config): void {
     throw new Error('PUBLISH_TIMESTAMP must be a non-negative number');
   }
 
-  if (!config.ownerSecret) {
-    throw new Error('OWNER_SECRET is required');
+  if (!config.mintSecret) {
+    throw new Error('MINT_SECRET is required');
   }
 }
