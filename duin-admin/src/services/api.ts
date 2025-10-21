@@ -221,6 +221,7 @@ export class ApiService {
       res.status(500).json({
         success: false,
         error: "Failed to transfer token",
+        cause: error instanceof Error ? error.cause ?? error.message : "Unknown error",
       });
     }
   }
