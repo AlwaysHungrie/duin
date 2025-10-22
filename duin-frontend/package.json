@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "typechain": "typechain --target ethers-v6 --out-dir src/contractTypes '../contracts/out/PrivateMarket.sol/PrivateMarket.json'",
@@ -15,7 +15,8 @@
     "pm2:delete": "pm2 delete duin-frontend",
     "pm2:logs": "pm2 logs duin-frontend",
     "pm2:monit": "pm2 monit",
-    "pm2:build:start": "npm run pm2:build && npm run pm2:start"
+    "pm2:build:start": "npm run pm2:build && npm run pm2:start",
+    "build:memory-safe": "NODE_OPTIONS='--max-old-space-size=2048' next build"
   },
   "dependencies": {
     "@privy-io/react-auth": "^3.3.0",

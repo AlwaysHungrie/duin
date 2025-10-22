@@ -8,13 +8,17 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: '1G',
+      // Memory optimization for build process
+      node_args: '--max-old-space-size=2048',
       env: {
         NODE_ENV: 'development',
-        PORT: 3002
+        PORT: 3002,
+        NODE_OPTIONS: '--max-old-space-size=2048'
       },
       env_production: {
         NODE_ENV: 'production',
-        PORT: 3002
+        PORT: 3002,
+        NODE_OPTIONS: '--max-old-space-size=2048'
       },
       error_file: './logs/err.log',
       out_file: './logs/out.log',

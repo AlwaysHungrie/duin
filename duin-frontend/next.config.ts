@@ -10,6 +10,17 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Memory optimization settings
+  experimental: {
+    // Reduce memory usage during build
+    memoryBasedWorkersCount: true,
+  },
+  // Optimize bundle size
+  swcMinify: true,
+  // Reduce memory usage
+  compiler: {
+    removeConsole: process.env.NODE_ENV === "production",
+  },
 };
 
 export default nextConfig;
