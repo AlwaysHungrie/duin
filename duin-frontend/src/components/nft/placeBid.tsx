@@ -31,7 +31,6 @@ export default function PlaceBid({
   setIsDialogOpen: (isDialogOpen: boolean) => void;
 }) {
   const { user, logout } = usePrivy();
-  const { wallets } = useWallets();
   const { userSecret } = useCommitments();
   const { checkIfBidExists, withdrawBid, placeBid } =
     usePrivateMarketContract();

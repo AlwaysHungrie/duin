@@ -184,7 +184,7 @@ export default function LearnPage() {
                   <br />
                   and If bidNullifier has not been withdrawn or used before{" "}
                   <br />
-                  <br />A new commitment is minted to the bidder's address, and
+                  <br />A new commitment is minted to the bidder&apos;s address, and
                   bid amount is transferred to the receiver address.
                 </code>
               </div>
@@ -211,7 +211,7 @@ export default function LearnPage() {
                 </li>
                 <li>
                   {" "}
-                  - Roadmap: Allow multiple admins, check admin's attestation on
+                  - Roadmap: Allow multiple admins, check admins&apos; attestation on
                   chain and replace admin with zero-knowledge proofs.
                 </li>
               </ul>
@@ -279,7 +279,7 @@ export default function LearnPage() {
               <li>
                 {" "}
                 - Allow multiple admins to be used for transfers by checking
-                admin's attestation on chain.
+                admins&apos; attestation on chain.
               </li>
               <li>
                 {" "}

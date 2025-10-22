@@ -570,7 +570,7 @@ export class BlockchainService {
 
       const currentBlock = await this.provider.getBlockNumber();
       const blockTimestampCache = new Map<number, number>();
-      const batchSize = 500;
+      const batchSize = 10;
 
       const commitments: Commitment[] = [];
 
@@ -590,6 +590,7 @@ export class BlockchainService {
           let ts = blockTimestampCache.get(blockNumber);
           if (ts === undefined) {
             const block = await this.provider.getBlock(blockNumber);
+            await new Promise(resolve => setTimeout(resolve, 200));
             ts = block?.timestamp ?? 0;
             blockTimestampCache.set(blockNumber, ts);
           }
@@ -616,6 +617,7 @@ export class BlockchainService {
 
         if (fromBlock === 0) break;
         toBlock = fromBlock - 1;
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
 
       // Return commitments in chronological order

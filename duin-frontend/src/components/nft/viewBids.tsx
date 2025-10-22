@@ -56,7 +56,7 @@ export default function ViewBids({
         setNoBidsFound(false);
       }
     },
-    [bids]
+    [bids, decryptedBids, commitmentHash]
   );
 
   const handleAcceptBid = useCallback(
@@ -152,7 +152,7 @@ export default function ViewBids({
         <div className="space-y-6 mt-6">
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm font-medium">
-              Please enter all the "Bid Secrets" shared with you separated by a
+              Please enter all the &quot;Bid Secrets&quot; shared with you separated by a
               space.
             </div>
             <div className="flex items-center gap-2">

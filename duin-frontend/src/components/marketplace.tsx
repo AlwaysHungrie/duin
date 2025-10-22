@@ -1,6 +1,5 @@
 "use client";
 
-import { DUMMY_NFT } from "@/content/dummyNft";
 import NFTCard from "@/components/nft/nftCard";
 import { useCommitments } from "@/context/commitmentsContext";
 import { Loader2 } from "lucide-react";
@@ -50,7 +49,7 @@ export default function Marketplace() {
         </p>
         <div className="flex flex-col gap-y-2 text-left mx-auto max-w-xl mt-4">
           <p className="text-base text-gray-400 max-w-xl">
-             - Some of the tickets you see might have already been sold, but it's
+             - Some of the tickets you see might have already been sold, but it&apos;s
             impossible to know for sure, or find the bids on a ticket.
           </p>
           <p className="text-base text-gray-400 max-w-xl">

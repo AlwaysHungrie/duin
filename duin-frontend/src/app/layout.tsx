@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Reddit_Sans, Reddit_Mono } from "next/font/google";
 import "./globals.css";
-import { PrivyProvider } from "@privy-io/react-auth";
 import Providers from "./providers";
 import { Toaster } from "@/components/ui/sonner";
 
