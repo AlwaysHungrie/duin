@@ -16,7 +16,7 @@
     "typechain": "typechain --target ethers-v6 --out-dir src/contractTypes ../contracts/out/PrivateMarket.sol/PrivateMarket.json",
     "generate-types": "npm run typechain && npm run build",
     "pm2:build": "npm run build",
-    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:start": "pm2 start ecosystem.config.cjs",
     "pm2:stop": "pm2 stop duin-admin",
     "pm2:restart": "pm2 restart duin-admin",
     "pm2:delete": "pm2 delete duin-admin",
