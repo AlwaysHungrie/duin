@@ -16,7 +16,9 @@
     "pm2:logs": "pm2 logs duin-frontend",
     "pm2:monit": "pm2 monit",
     "pm2:build:start": "npm run pm2:build && npm run pm2:start",
-    "build:memory-safe": "NODE_OPTIONS='--max-old-space-size=2048' next build"
+    "build:memory-safe": "NODE_OPTIONS='--max-old-space-size=4096' next build",
+    "build:low-memory": "NODE_OPTIONS='--max-old-space-size=1024 --max-semi-space-size=128' next build",
+    "build:single-thread": "NODE_OPTIONS='--max-old-space-size=4096' next build --no-lint"
   },
   "dependencies": {
     "@privy-io/react-auth": "^3.3.0",

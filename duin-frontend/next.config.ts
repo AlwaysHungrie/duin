@@ -14,13 +14,19 @@ const nextConfig: NextConfig = {
   experimental: {
     // Reduce memory usage during build
     memoryBasedWorkersCount: true,
+    // Use fewer workers to reduce memory usage
+    workerThreads: false,
+    // Disable features that use more memory
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-popover'],
   },
-  // Optimize bundle size
-  swcMinify: true,
   // Reduce memory usage
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",
   },
+  // Disable source maps in production to save memory
+  productionBrowserSourceMaps: false,
+  // Optimize for memory usage
+  output: 'standalone',
 };
 
 export default nextConfig;
