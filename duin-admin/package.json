@@ -14,7 +14,16 @@
     "lint": "echo \"Linting not configured\"",
     "type-check": "tsc --noEmit",
     "typechain": "typechain --target ethers-v6 --out-dir src/contractTypes ../contracts/out/PrivateMarket.sol/PrivateMarket.json",
-    "generate-types": "npm run typechain && npm run build"
+    "generate-types": "npm run typechain && npm run build",
+    "pm2:build": "npm run build",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop duin-admin",
+    "pm2:restart": "pm2 restart duin-admin",
+    "pm2:delete": "pm2 delete duin-admin",
+    "pm2:logs": "pm2 logs duin-admin",
+    "pm2:monit": "pm2 monit",
+    "pm2:build:start": "npm run pm2:build && npm run pm2:start"
+
   },
   "keywords": [],
   "author": "",
@@ -33,6 +42,7 @@
     "@types/express": "^5.0.3",
     "@types/node": "^24.8.1",
     "nodemon": "^3.1.10",
+    "pm2": "^5.3.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.6",
     "typechain": "^8.3.2",
