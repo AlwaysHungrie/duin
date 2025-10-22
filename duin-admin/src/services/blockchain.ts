@@ -10,7 +10,7 @@ import type {
   BidEvent,
 } from "../types/index.js";
 import type { ContractConfig } from "../config/contract.js";
-import type { PrivateMarket } from "../contractTypes/index.js";
+import type { PrivateMarket } from "../contractTypes/PrivateMarket.js";
 import { logger } from "../utils/logger.js";
 
 export class BlockchainService {

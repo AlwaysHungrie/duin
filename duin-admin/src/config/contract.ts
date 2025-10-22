@@ -1,5 +1,5 @@
 import type { ethers } from "ethers";
-import { PrivateMarket__factory } from "../contractTypes/index.js";
+import { PrivateMarket__factory } from "../contractTypes/factories/PrivateMarket__factory.js";
 import type { Commitment, BidEvent } from "../types/index.js";
 
 export class ContractConfig {
