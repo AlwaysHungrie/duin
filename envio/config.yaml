@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=./node_modules/envio/evm.schema.json
+name: envio-indexer
+networks:
+- id: 8453
+  start_block: 0
+  contracts:
+  - name: PrivateMarket
+    address:
+    - 0xFE191D6bf6a1132B3df3F0DFCC6f899F6AD48de4
+    handler: src/EventHandlers.ts
+    events:
+    - event: BidPlaced(address indexed bidder, bytes32 bidNullifier, uint256 amount)
+    - event: BidWithdrawn(address indexed bidder, bytes32 bidNullifier, uint256 amount)
+    - event: NftMinted(uint256 tokenId, bytes32 commitment)
+unordered_multichain_mode: true
+preload_handlers: true

@@ -1,0 +1,20 @@
+type PrivateMarket_BidPlaced {
+  id: ID!
+  bidder: String!
+  bidNullifier: String!
+  amount: BigInt!
+}
+
+type PrivateMarket_BidWithdrawn {
+  id: ID!
+  bidder: String!
+  bidNullifier: String!
+  amount: BigInt!
+}
+
+type PrivateMarket_NftMinted {
+  id: ID!
+  tokenId: BigInt!
+  commitment: String!
+}
+
