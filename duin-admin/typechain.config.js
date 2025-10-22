@@ -6,4 +6,7 @@ module.exports = {
   discriminateTypes: false,
   tsNocheck: false,
   environment: 'hardhat',
+  useLocalContracts: false,
+  externalArtifacts: [],
+  dontOverrideCompile: false,
 };
