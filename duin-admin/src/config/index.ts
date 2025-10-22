@@ -15,6 +15,7 @@ export function loadConfig(): Config {
   const mintSecret = process.env.MINT_SECRET || '';
   const corsOrigin = process.env.CORS_ORIGIN || '*';
   const contractAddress = process.env.CONTRACT_ADDRESS || '';
+  const graphEndpoint = process.env.GRAPH_ENDPOINT || '';
 
   if (!privateKey) {
     throw new Error('PRIVATE_KEY is required in environment variables');
@@ -28,7 +29,8 @@ export function loadConfig(): Config {
     publishTimestamp,
     mintSecret,
     corsOrigin,
-    contractAddress
+    contractAddress,
+    graphEndpoint
   };
 }
 
@@ -55,5 +57,9 @@ export function validateConfig(config: Config): void {
 
   if (!config.mintSecret) {
     throw new Error('MINT_SECRET is required');
+  }
+
+  if (!config.graphEndpoint) {
+    throw new Error('GRAPH_ENDPOINT is required');
   }
 }

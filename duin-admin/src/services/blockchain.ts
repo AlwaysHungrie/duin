@@ -1,6 +1,7 @@
 // Blockchain service for interacting with Anvil
 
 import { ethers } from "ethers";
+import { GraphQLClient } from "graphql-request";
 import type {
   WalletInfo,
   NftMintedEvent,
@@ -20,6 +21,7 @@ export class BlockchainService {
   private contractConfig: ContractConfig;
   private nonce: number | null = null;
   private gasPrice: bigint | null = null;
+  private graphqlClient: GraphQLClient;
 
   constructor(
     rpcUrl: string,
@@ -32,6 +34,7 @@ export class BlockchainService {
     this.wallet = new ethers.Wallet(privateKey, this.provider);
     this.config = config;
     this.contractConfig = contractConfig;
+    this.graphqlClient = new GraphQLClient(config.graphEndpoint);
   }
 
   getWalletAddress(): string {
@@ -450,183 +453,130 @@ export class BlockchainService {
     throw new Error(`Failed to transfer token after ${maxRetries} attempts: ${lastError?.message || "Unknown error"}`);
   }
 
-  // read all events BidPlaced, BidWithdrawn, till the tillTimestamp
+  // read all events BidPlaced, BidWithdrawn using HyperIndex GraphQL
   async updateBids() {
-    let lastTimestamp = this.config.publishTimestamp;
-    let lastEventTimestamp = this.config.publishTimestamp;
-
-    const bids = this.contractConfig.getBidEvents();
-    if (bids?.length && bids[bids.length - 1]?.timestamp !== undefined) {
-      lastEventTimestamp = bids[bids.length - 1]!.timestamp;
-    }
-
     try {
-      const contractAddress = this.contractConfig.getContractAddress();
-      if (!contractAddress) {
-        throw new Error(
-          "Contract not deployed. Please deploy the contract first."
-        );
-      }
-
-      const factory = this.contractConfig.getContractFactory(this.wallet);
-      const contract = factory.attach(contractAddress) as PrivateMarket;
-
-      const currentBlock = await this.provider.getBlockNumber();
-      const blockTimestampCache = new Map<number, number>();
-      const batchSize = 500;
-
-      const bidEvents: BidEvent[] = [];
-
-      let toBlock = currentBlock;
-      while (toBlock >= 0) {
-        const fromBlock = Math.max(0, toBlock - batchSize + 1);
-
-        // Query BidPlaced events in this block range
-        const bidPlacedEvents = await contract.queryFilter(
-          contract.filters.BidPlaced(),
-          fromBlock,
-          toBlock
-        );
-        const bidWithdrawnEvents = await contract.queryFilter(
-          contract.filters.BidWithdrawn(),
-          fromBlock,
-          toBlock
-        );
-
-        const blockBidEvents = await Promise.all(
-          [...bidPlacedEvents, ...bidWithdrawnEvents].map(async (ev, index) => {
-            const blockNumber = ev.blockNumber;
-            let ts = blockTimestampCache.get(blockNumber);
-            if (ts === undefined) {
-              const block = await this.provider.getBlock(blockNumber);
-              ts = block?.timestamp ?? 0;
-              blockTimestampCache.set(blockNumber, ts);
-            }
-            if (lastEventTimestamp <= 0 || ts > lastEventTimestamp) {
-              console.log("ev:", ev);
-              const bidNullifier = (ev.args?.[1] as string) ?? ""; // bytes32
-              const amount = ev.args?.[2] ?? ""; // uint256
-              if (bidNullifier) {
-                return {
-                  type:
-                    index < bidPlacedEvents.length
-                      ? ("placed" as const)
-                      : ("withdrawn" as const),
-                  bidNullifier,
-                  amount: amount.toString(),
-                  timestamp: ts,
-                };
-              }
-            }
-          })
-        );
-
-        bidEvents.push(
-          ...blockBidEvents
-            .filter((event) => event !== undefined)
-            .sort((a, b) => a.timestamp - b.timestamp)
-        );
-
-        // If the oldest block in this batch is at or before the cutoff, we can stop.
-        if (lastEventTimestamp > 0) {
-          const oldestBlock = await this.provider.getBlock(fromBlock);
-          if (oldestBlock && oldestBlock.timestamp <= lastEventTimestamp) {
-            break;
+      // Get the last processed bid ID for pagination
+      const lastProcessedId = this.contractConfig.getLastProcessedBidId();
+      
+      // GraphQL query to fetch both BidPlaced and BidWithdrawn events
+      // Order by ID to ensure chronological order (ID format: chainId_blockNumber_logIndex)
+      const query = `
+        query GetBidEvents($orderBy: [PrivateMarket_BidPlaced_order_by!], $orderByWithdrawn: [PrivateMarket_BidWithdrawn_order_by!]) {
+          bidPlaced: PrivateMarket_BidPlaced(order_by: $orderBy) {
+            id
+            bidNullifier
+            amount
+            bidder
+          }
+          bidWithdrawn: PrivateMarket_BidWithdrawn(order_by: $orderByWithdrawn) {
+            id
+            bidNullifier
+            amount
+            bidder
           }
         }
+      `;
 
-        if (fromBlock === 0) break;
-        toBlock = fromBlock - 1;
+      const variables = {
+        orderBy: [{ id: "asc" }],
+        orderByWithdrawn: [{ id: "asc" }]
+      };
+
+      const response = await this.graphqlClient.request(query, variables);
+      
+      const bidEvents: BidEvent[] = [];
+
+      // Process BidPlaced events
+      if (response.bidPlaced) {
+        response.bidPlaced.forEach((event: any) => {
+          // Skip events that have already been processed
+          if (lastProcessedId && event.id <= lastProcessedId) return;
+          
+          bidEvents.push({
+            id: event.id,
+            type: "placed",
+            bidNullifier: event.bidNullifier,
+            amount: event.amount,
+            timestamp: Date.now(), // Using current time since HyperIndex doesn't provide timestamp
+          });
+        });
       }
+
+      // Process BidWithdrawn events
+      if (response.bidWithdrawn) {
+        response.bidWithdrawn.forEach((event: any) => {
+          // Skip events that have already been processed
+          if (lastProcessedId && event.id <= lastProcessedId) return;
+          
+          bidEvents.push({
+            id: event.id,
+            type: "withdrawn",
+            bidNullifier: event.bidNullifier,
+            amount: event.amount,
+            timestamp: Date.now(), // Using current time since HyperIndex doesn't provide timestamp
+          });
+        });
+      }
+
+      // Sort by ID to maintain chronological order
+      bidEvents.sort((a, b) => a.id.localeCompare(b.id));
 
       this.contractConfig.updateBids(bidEvents);
     } catch (error) {
-      logger.info("Error fetching commitments:", error);
-      throw new Error("Failed to fetch commitments");
+      logger.info("Error fetching bids from HyperIndex:", error);
+      throw new Error("Failed to fetch bids from indexer");
     }
   }
 
-  // read all events NftMinted till the tillTimestamp
+  // read all events NftMinted using HyperIndex GraphQL
   async updateCommitments() {
-    let lastTimestamp = this.config.publishTimestamp;
-    let lastEventTimestamp = this.config.publishTimestamp;
-    const commitments = this.contractConfig.getCommitments();
-    if (
-      commitments?.length &&
-      commitments[commitments.length - 1]?.timestamp !== undefined
-    ) {
-      lastTimestamp = commitments[commitments.length - 1]!.timestamp;
-    }
     try {
-      const contractAddress = this.contractConfig.getContractAddress();
-      if (!contractAddress) {
-        throw new Error(
-          "Contract not deployed. Please deploy the contract first."
-        );
-      }
+      // Get the last processed commitment ID for pagination
+      const lastProcessedId = this.contractConfig.getLastProcessedCommitmentId();
+      
+      // GraphQL query to fetch NftMinted events
+      // Order by ID to ensure chronological order (ID format: chainId_blockNumber_logIndex)
+      const query = `
+        query GetCommitments($orderBy: [PrivateMarket_NftMinted_order_by!]) {
+          PrivateMarket_NftMinted(order_by: $orderBy) {
+            id
+            tokenId
+            commitment
+          }
+        }
+      `;
 
-      const factory = this.contractConfig.getContractFactory(this.wallet);
-      const contract = factory.attach(contractAddress) as PrivateMarket;
+      const variables = {
+        orderBy: [{ id: "asc" }]
+      };
 
-      const currentBlock = await this.provider.getBlockNumber();
-      const blockTimestampCache = new Map<number, number>();
-      const batchSize = 10;
-
+      const response = await this.graphqlClient.request(query, variables);
+      
       const commitments: Commitment[] = [];
 
-      let toBlock = currentBlock;
-      while (toBlock >= 0) {
-        const fromBlock = Math.max(0, toBlock - batchSize + 1);
-
-        // Query NftMinted events in this block range
-        const events = await contract.queryFilter(
-          contract.filters.NftMinted(),
-          fromBlock,
-          toBlock
-        );
-
-        for (const ev of events) {
-          const blockNumber = ev.blockNumber;
-          let ts = blockTimestampCache.get(blockNumber);
-          if (ts === undefined) {
-            const block = await this.provider.getBlock(blockNumber);
-            await new Promise(resolve => setTimeout(resolve, 200));
-            ts = block?.timestamp ?? 0;
-            blockTimestampCache.set(blockNumber, ts);
-          }
-          if (lastTimestamp <= 0 || ts > lastTimestamp) {
-            const commitment = (ev.args?.[1] as string) ?? ""; // bytes32
-            const tokenId = (ev.args?.[0].toString() ?? "") as string;
-            if (commitment) {
-              commitments.push({
-                tokenId,
-                commitmentHash: commitment,
-                timestamp: ts,
-              });
-            }
-          }
-        }
-
-        // If the oldest block in this batch is at or before the cutoff, we can stop.
-        if (lastTimestamp > 0) {
-          const oldestBlock = await this.provider.getBlock(fromBlock);
-          if (oldestBlock && oldestBlock.timestamp <= lastTimestamp) {
-            break;
-          }
-        }
-
-        if (fromBlock === 0) break;
-        toBlock = fromBlock - 1;
-        await new Promise(resolve => setTimeout(resolve, 200));
+      // Process NftMinted events
+      if (response.PrivateMarket_NftMinted) {
+        response.PrivateMarket_NftMinted.forEach((event: any) => {
+          // Skip events that have already been processed
+          if (lastProcessedId && event.id <= lastProcessedId) return;
+          
+          commitments.push({
+            id: event.id,
+            tokenId: event.tokenId,
+            commitmentHash: event.commitment,
+            timestamp: Date.now(), // Using current time since HyperIndex doesn't provide timestamp
+          });
+        });
       }
 
-      // Return commitments in chronological order
-      this.contractConfig.addCommitments(
-        commitments.sort((a, b) => a.timestamp - b.timestamp)
-      );
+      // Sort by ID to maintain chronological order
+      commitments.sort((a, b) => a.id.localeCompare(b.id));
+
+      this.contractConfig.addCommitments(commitments);
     } catch (error) {
-      logger.info("Error fetching commitments:", error);
-      throw new Error("Failed to fetch commitments");
+      logger.info("Error fetching commitments from HyperIndex:", error);
+      throw new Error("Failed to fetch commitments from indexer");
     }
   }
 

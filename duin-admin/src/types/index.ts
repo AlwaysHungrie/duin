@@ -40,6 +40,7 @@ export interface Config {
   contractAddress?: string;
   mintSecret: string;
   corsOrigin: string;
+  graphEndpoint: string;
 }
 
 export interface NftMintedEvent {
@@ -49,12 +50,14 @@ export interface NftMintedEvent {
 }
 
 export interface Commitment {
+  id: string;
   tokenId: string;
   commitmentHash: string;
   timestamp: number;
 }
 
 export interface BidEvent {
+  id: string;
   type: "placed" | "withdrawn";
   bidNullifier: string;
   amount: string;

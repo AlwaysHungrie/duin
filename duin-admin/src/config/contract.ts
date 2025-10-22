@@ -7,6 +7,8 @@ export class ContractConfig {
   private commitments: Commitment[] = [];
   private allBidEvents: BidEvent[] = [];
   public bids: { [key: string]: BidEvent } = {};
+  private processedCommitmentIds: Set<string> = new Set();
+  private processedBidIds: Set<string> = new Set();
   constructor(public contractAddress: string | null = null) {}
 
   getContractAddress(): string | null {
@@ -30,7 +32,20 @@ export class ContractConfig {
 
   addCommitments(commitments: Commitment[]) {
     if (!commitments.length) return;
-    this.commitments = [...this.commitments, ...commitments];
+    
+    // Filter out already processed commitments
+    const newCommitments = commitments.filter(commitment => 
+      !this.processedCommitmentIds.has(commitment.id)
+    );
+    
+    if (newCommitments.length === 0) return;
+    
+    // Add IDs to processed set
+    newCommitments.forEach(commitment => {
+      this.processedCommitmentIds.add(commitment.id);
+    });
+    
+    this.commitments = [...this.commitments, ...newCommitments];
   }
 
   getBidEvents(): BidEvent[] {
@@ -39,9 +54,22 @@ export class ContractConfig {
 
   updateBids(bidEvents: BidEvent[]) {
     if (!bidEvents.length) return;
-    this.allBidEvents = [...this.allBidEvents, ...bidEvents];
+    
+    // Filter out already processed bid events
+    const newBidEvents = bidEvents.filter(bidEvent => 
+      !this.processedBidIds.has(bidEvent.id)
+    );
+    
+    if (newBidEvents.length === 0) return;
+    
+    // Add IDs to processed set
+    newBidEvents.forEach(bidEvent => {
+      this.processedBidIds.add(bidEvent.id);
+    });
+    
+    this.allBidEvents = [...this.allBidEvents, ...newBidEvents];
 
-    bidEvents.forEach((bidEvent) => {
+    newBidEvents.forEach((bidEvent) => {
       if (bidEvent.type === "placed") {
         this.bids[bidEvent.bidNullifier] = bidEvent;
       } else {
@@ -52,5 +80,15 @@ export class ContractConfig {
 
   getBids(): Omit<BidEvent, "type">[] {
     return Object.values(this.bids).sort((a, b) => a.timestamp - b.timestamp);
+  }
+
+  getLastProcessedCommitmentId(): string | null {
+    if (this.commitments.length === 0) return null;
+    return this.commitments[this.commitments.length - 1]?.id || null;
+  }
+
+  getLastProcessedBidId(): string | null {
+    if (this.allBidEvents.length === 0) return null;
+    return this.allBidEvents[this.allBidEvents.length - 1]?.id || null;
   }
 }
